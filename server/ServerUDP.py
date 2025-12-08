@@ -1,19 +1,39 @@
-import socket # pripojí knižnicu sieťovej komunikácie na úrovni socket
+import socket 
+from _thread import *
 
-host = socket.gethostbyname(socket.gethostname()) # oznámi aplikácii IP adresu
-
-print("Server bude bežať na adrese:", host)
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # vytvorí komunikačný kanál UDP
+server = ""
 port = 5678
-s.bind((host, port)) # priradí kanál k adrese a portu
-print("Server beží na porte:", port)
-clients = set() # množina na uloženie adries klientov
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # vytvorí komunikačný kanál UDP
+
+try: 
+    s.bind((server, port)) # priradí kanál k adrese a portu
+except socket.error as e:
+    print(e)
+
+s.listen(2)
+print("Čaka sa na pripojenie, Server beží")
+
+def threaded_client(conn):
+    reply = "192.168.137.152"
+    while True:
+        try:
+            data = conn.recv(1024)
+            reply = data.decode("utf-8")
+            if not data:
+                print("Odpojený")
+                break
+            else:
+                print("Prijaté:", reply)
+                print("Odoslané:", reply)
+
+            conn.sendall(str.encode(reply))
+        except:
+            break
+                  
+
 
 while True:
-    data, addr = s.recvfrom(1024) # čaká na príchod dát (maximálne 1024 bajtov)
-    clients.add(addr)
-    data = data.decode('utf-8') # dekóduje prijaté dáta z bajtov na reťazec
-    print(str(addr) + data) # vypíše prijaté dáta spolu s adresou odosielateľa
-    for c in clients:
-        if c != addr: # neodosiela späť odosielateľovi
-            s.sendto(data.encode('utf-8'), c) # odošle prijaté dáta všetkým ostatným klientom
+    conn, addr = s.accept()
+    print("Pripojený k:", addr)
+    start_new_thread(threaded_client, (conn,))
