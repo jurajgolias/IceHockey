@@ -1,10 +1,10 @@
 import socket 
 from _thread import *
 
-server = ""
+server = "192.168.68.112"
 port = 5678
 
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # vytvorí komunikačný kanál UDP
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # vytvorí komunikačný kanál TCP
 
 try: 
     s.bind((server, port)) # priradí kanál k adrese a portu
@@ -15,7 +15,8 @@ s.listen(2)
 print("Čaka sa na pripojenie, Server beží")
 
 def threaded_client(conn):
-    reply = "192.168.137.152"
+    conn.send(str.encode("Pripojené k serveru"))
+    reply = ""
     while True:
         try:
             data = conn.recv(1024)
@@ -30,6 +31,9 @@ def threaded_client(conn):
             conn.sendall(str.encode(reply))
         except:
             break
+    
+    print("Stratené pripojenie")
+    conn.close()
                   
 
 
