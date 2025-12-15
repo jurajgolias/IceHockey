@@ -55,23 +55,35 @@ def draw_placeholder(text):
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
 
 
-#
+
 try:
     _loaded = pygame.image.load("images/palka.png").convert_alpha()
     paddle_img = pygame.transform.smoothscale(_loaded, (180, 180))
 except pygame.error:
     paddle_img = None
 
+
+try:
+    _loaded_bg = pygame.image.load("images/lad.png").convert()
+    background_img = pygame.transform.smoothscale(_loaded_bg, (WIDTH, HEIGHT))
+except pygame.error:
+    background_img = None
+
 def draw_paddle_follow_mouse():
     if not paddle_img:
         return
     mx, my = pygame.mouse.get_pos()
+    mx = max(mx, WIDTH // 2)  
+    my = max(90, min(my, HEIGHT - 90))  
     rect = paddle_img.get_rect(center=(mx, my))
     screen.blit(paddle_img, rect)
-# ------------------------------------------------------
+
 
 def draw_game_scene():
-    screen.fill(WHITE)
+    if background_img:
+        screen.blit(background_img, (0, 0))
+    else:
+        screen.fill(WHITE)
     draw_paddle_follow_mouse()
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 30)))
@@ -102,6 +114,8 @@ while running:
         draw_placeholder("NASTAVENIA (pripravujú sa)")
     elif mode == "skins":
         draw_placeholder("SKINY (pripravujú sa)")
+
+    pygame.mouse.set_visible(mode != "game")  
 
     pygame.display.flip()
     clock.tick(60)
