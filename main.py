@@ -3,7 +3,20 @@ from Client import Client
 
 # základné nastavenie okna
 pygame.init()
+music_volume = 1.0
+dragging_volume = False
+mixer_ok = False
+try:
+    pygame.mixer.init()
+    pygame.mixer.music.load("sounds/soundtrack1.wav")
+    pygame.mixer.music.set_volume(music_volume)
+    pygame.mixer.music.play(-1)  # hrá dookola
+    mixer_ok = True
+except pygame.error as e:
+    print("Hudbu sa nepodarilo spustiť:", e)
 WIDTH, HEIGHT = 1280, 700
+SLIDER_WIDTH, SLIDER_HEIGHT = 400, 8
+SLIDER_HANDLE_RADIUS = 14
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Air Hockey")
 clock = pygame.time.Clock()
@@ -59,6 +72,21 @@ buttons = {
 }
 
 
+def slider_rect():
+    return pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, HEIGHT // 2, SLIDER_WIDTH, SLIDER_HEIGHT)
+
+
+def slider_handle_rect():
+    rect = slider_rect()
+    handle_x = rect.x + int(music_volume * rect.width)
+    return pygame.Rect(handle_x - SLIDER_HANDLE_RADIUS, rect.centery - SLIDER_HANDLE_RADIUS, SLIDER_HANDLE_RADIUS * 2, SLIDER_HANDLE_RADIUS * 2)
+
+
+def slider_hitbox():
+    # Slightly taller area so clicks near the handle still register
+    return slider_rect().inflate(0, 24)
+
+
 def draw_button(rect, label):
     pygame.draw.rect(screen, WHITE, rect, border_radius=8)
     text = button_font.render(label, True, BLACK)
@@ -79,6 +107,31 @@ def draw_placeholder(text):
     screen.fill(BLACK)
     info = title_font.render(text, True, WHITE)
     screen.blit(info, info.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+    hint = small_font.render("ESC - späť do menu", True, GRAY)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+
+
+def draw_settings():
+    screen.fill(PURPLE)
+    title = title_font.render("NASTAVENIA", True, WHITE)
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, 150)))
+
+    # slider
+    s_rect = slider_rect()
+    handle = slider_handle_rect()
+    pygame.draw.rect(screen, WHITE, s_rect)
+    pygame.draw.circle(screen, WHITE, handle.center, SLIDER_HANDLE_RADIUS)
+
+    label = small_font.render("Hlasitosť hudby", True, WHITE)
+    screen.blit(label, label.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 30)))
+
+    volume_text = small_font.render(f"{int(music_volume * 100)}%", True, WHITE)
+    screen.blit(volume_text, volume_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30)))
+
+    if not mixer_ok:
+        warn = small_font.render("Audio sa nespustilo", True, GRAY)
+        screen.blit(warn, warn.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 110)))
+
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
 
