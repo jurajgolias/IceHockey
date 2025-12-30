@@ -1,4 +1,5 @@
 import pygame
+import math
 from Client import Client
 
 # základné nastavenie okna
@@ -23,19 +24,24 @@ clock = pygame.time.Clock()
 
 clientNumber = 0
 class Player():
-    def __init__(self, x, y, width, height, color, x_min=0, x_max=None):
+    def __init__(self, x, y, width, height, image, x_min=0, x_max=None):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
-        self.color = color
+        self.image = image
         self.rect = (x,y,width,height)
         self.vel = 3
         self.x_min = x_min
         self.x_max = WIDTH - width if x_max is None else x_max
 
     def draw(self, win):
-        pygame.draw.rect(win, self.color, self.rect)
+        if self.image:
+            img_rect = self.image.get_rect(center=(self.x + self.width // 2, self.y + self.height // 2))
+            win.blit(self.image, img_rect)
+        else:
+            # Fallback na obdĺžnik, ak obrázok nie je načítaný
+            pygame.draw.rect(win, (255, 0, 0), self.rect)
 
     def move(self):
         mx, my = pygame.mouse.get_pos()
@@ -52,6 +58,12 @@ class Player():
 
     def update(self):
         self.rect = (self.x, self.y, self.width, self.height)
+    
+    def get_center(self):
+        return (self.x + self.width // 2, self.y + self.height // 2)
+    
+    def get_rect(self):
+        return pygame.Rect(self.x, self.y, self.width, self.height)
 
 # farby a fonty
 WHITE = (255, 255, 255)
@@ -148,6 +160,25 @@ try:
 except pygame.error:
     paddle_img = None
 
+# Načítanie obrázkov pálok pre hráčov
+try:
+    _loaded_cerveny = pygame.image.load("images/cerveny.png").convert_alpha()
+    cerveny_img = pygame.transform.smoothscale(_loaded_cerveny, (180, 180))
+except pygame.error:
+    cerveny_img = None
+
+try:
+    _loaded_modry = pygame.image.load("images/modry.png").convert_alpha()
+    modry_img = pygame.transform.smoothscale(_loaded_modry, (180, 180))
+except pygame.error:
+    modry_img = None
+
+# Načítanie obrázka puku
+try:
+    _loaded_puk = pygame.image.load("images/puk.png").convert_alpha()
+    puk_img = pygame.transform.smoothscale(_loaded_puk, (80, 80))
+except pygame.error:
+    puk_img = None
 
 try:
     _loaded_bg = pygame.image.load("images/lad.png").convert()
@@ -166,7 +197,127 @@ except pygame.error:
 #    screen.blit(paddle_img, rect)
 
 
-def draw_game_scene(player, player2):
+def check_collision(puck, player):
+    """Kontroluje kolíziu medzi pukom a pálkou"""
+    puck_radius = 40  # Polomer puku (80/2)
+    player_center = player.get_center()
+    player_radius = 90  # Polomer pálky (180/2)
+    
+    # Vzdialenosť medzi stredmi
+    dx = puck['x'] - player_center[0]
+    dy = puck['y'] - player_center[1]
+    distance = math.sqrt(dx*dx + dy*dy)
+    
+    # Ak sú v kolízii
+    if distance < (puck_radius + player_radius):
+        # Normalizovaný vektor smeru
+        if distance > 0:
+            nx = dx / distance
+            ny = dy / distance
+        else:
+            nx, ny = 1, 0
+        
+        # Presun puku mimo kolízie
+        overlap = (puck_radius + player_radius) - distance
+        puck['x'] += nx * overlap
+        puck['y'] += ny * overlap
+        
+        # Rýchlosť pálky (zmena pozície)
+        player_vel_x = player.x - getattr(player, 'prev_x', player.x)
+        player_vel_y = player.y - getattr(player, 'prev_y', player.y)
+        
+        # Relatívna rýchlosť
+        relative_vel_x = puck['vx'] - player_vel_x * 0.1
+        relative_vel_y = puck['vy'] - player_vel_y * 0.1
+        
+        # Odraz - odrazíme rýchlosť podľa normály
+        dot_product = relative_vel_x * nx + relative_vel_y * ny
+        puck['vx'] = relative_vel_x - 2 * dot_product * nx + player_vel_x * 0.1
+        puck['vy'] = relative_vel_y - 2 * dot_product * ny + player_vel_y * 0.1
+        
+        # Pridáme silu od pálky
+        force = 8.0
+        puck['vx'] += nx * force
+        puck['vy'] += ny * force
+        
+        return True
+    return False
+
+def check_collision_local(puck, player):
+    """Kontroluje kolíziu medzi pukom a pálkou lokálne (pre vizuálnu synchronizáciu)"""
+    puck_radius = 40
+    player_center = player.get_center()
+    player_radius = 90
+    
+    dx = puck['x'] - player_center[0]
+    dy = puck['y'] - player_center[1]
+    distance = math.sqrt(dx*dx + dy*dy)
+    
+    if distance < (puck_radius + player_radius):
+        if distance > 0:
+            nx = dx / distance
+            ny = dy / distance
+        else:
+            nx, ny = 1, 0
+        
+        # Rýchlosť pálky
+        player_vel_x = player.x - getattr(player, 'prev_x', player.x)
+        player_vel_y = player.y - getattr(player, 'prev_y', player.y)
+        
+        # Pridáme silu od pálky
+        force = 8.0
+        puck['vx'] += nx * force
+        puck['vy'] += ny * force
+        
+        return True
+    return False
+
+def update_puck(puck, player, player2):
+    """Aktualizuje pozíciu a rýchlosť puku"""
+    # Trenie
+    friction = 0.98
+    puck['vx'] *= friction
+    puck['vy'] *= friction
+    
+    # Zastavíme puk, ak je rýchlosť veľmi malá
+    if abs(puck['vx']) < 0.1:
+        puck['vx'] = 0
+    if abs(puck['vy']) < 0.1:
+        puck['vy'] = 0
+    
+    # Aktualizácia pozície
+    puck['x'] += puck['vx']
+    puck['y'] += puck['vy']
+    
+    puck_radius = 40
+    
+    # Odraz od stien (horizontálne)
+    if puck['x'] - puck_radius < 0:
+        puck['x'] = puck_radius
+        puck['vx'] = -puck['vx'] * 0.8
+    elif puck['x'] + puck_radius > WIDTH:
+        puck['x'] = WIDTH - puck_radius
+        puck['vx'] = -puck['vx'] * 0.8
+    
+    # Odraz od stien (vertikálne) - s ohraničením pre hru
+    if puck['y'] - puck_radius < 90:  # Horná stena
+        puck['y'] = 90 + puck_radius
+        puck['vy'] = -puck['vy'] * 0.8
+    elif puck['y'] + puck_radius > HEIGHT - 90:  # Dolná stena
+        puck['y'] = HEIGHT - 90 - puck_radius
+        puck['vy'] = -puck['vy'] * 0.8
+    
+    # Kontrola kolízie s pálkami
+    check_collision(puck, player)
+    check_collision(puck, player2)
+    
+    # Uloženie predchádzajúcej pozície pálok pre výpočet rýchlosti
+    player.prev_x = player.x
+    player.prev_y = player.y
+    player2.prev_x = player2.x
+    player2.prev_y = player2.y
+
+def draw_game_scene(player, player2, puk):
     if background_img:
         screen.blit(background_img, (0, 0))
     else:
@@ -176,6 +327,10 @@ def draw_game_scene(player, player2):
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 30)))
     player.draw(screen)
     player2.draw(screen)
+    # Zobrazenie puku
+    if puk_img and puk:
+        puk_rect = puk_img.get_rect(center=(puk['x'], puk['y']))
+        screen.blit(puk_img, puk_rect)
 
 def read_pos(str):
     if not str:
@@ -188,6 +343,27 @@ def read_pos(str):
 
 def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
+
+def read_response(str):
+    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+    if not str:
+        return None, None
+    try:
+        parts = str.split("|")
+        if len(parts) == 2:
+            player_pos = read_pos(parts[0])
+            puck_parts = parts[1].split(",")
+            if len(puck_parts) == 4:
+                puck = {
+                    'x': float(puck_parts[0]),
+                    'y': float(puck_parts[1]),
+                    'vx': float(puck_parts[2]),
+                    'vy': float(puck_parts[3])
+                }
+                return player_pos, puck
+    except Exception as e:
+        print("Error reading response:", e)
+    return None, None
 
 def main():
     global mode
@@ -202,9 +378,24 @@ def main():
         p1_bounds = (0, WIDTH // 2 - 180)
         p2_bounds = (WIDTH // 2, WIDTH - 180)
 
-    player = Player(startPos[0], startPos[1], 180, 180, (255,0,0), *p1_bounds)
-    player2 = Player(0, 0, 180, 180, (0,0,255), *p2_bounds)
+    player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, *p1_bounds)
+    player2 = Player(0, 0, 180, 180, modry_img, *p2_bounds)
     player2.update()
+    
+    # Inicializácia puku - bude sa načítať zo servera
+    puk = {
+        'x': WIDTH // 2,
+        'y': HEIGHT // 2,
+        'vx': 0.0,
+        'vy': 0.0
+    }
+    
+    # Inicializácia predchádzajúcich pozícií pálok
+    player.prev_x = player.x
+    player.prev_y = player.y
+    player2.prev_x = player2.x
+    player2.prev_y = player2.y
+    
     run = True
 
     while run:
@@ -212,11 +403,28 @@ def main():
 
         if mode == "game":
             player.move()
+            
+            # Kontrola kolízie s pálkou (lokálne pre okamžitú odozvu)
+            check_collision_local(puk, player)
+            
+            # Uloženie predchádzajúcich pozícií
+            player.prev_x = player.x
+            player.prev_y = player.y
+            player2.prev_x = player2.x
+            player2.prev_y = player2.y
 
-        response = client.send(make_pos((player.x, player.y)))
+        # Posielame pozíciu hráča a puku na server, prijímame pozíciu druhého hráča a puk
+        response = client.send_with_puck((player.x, player.y), puk)
         if response:
-            player2Pos = read_pos(response)
-            player2.x, player2.y = player2Pos
+            player2Pos, server_puck = read_response(response)
+            if player2Pos:
+                player2.x, player2.y = player2Pos
+            if server_puck:
+                # Použijeme puk zo servera (autoritatívny)
+                puk['x'] = server_puck['x']
+                puk['y'] = server_puck['y']
+                puk['vx'] = server_puck['vx']
+                puk['vy'] = server_puck['vy']
         player2.update()
 
         for event in pygame.event.get():
@@ -256,7 +464,7 @@ def main():
         if mode == "menu":
             draw_menu()
         elif mode == "game":
-            draw_game_scene(player, player2)
+            draw_game_scene(player, player2, puk)
         elif mode == "settings":
             draw_settings()
         elif mode == "skins":

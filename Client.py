@@ -25,6 +25,16 @@ class Client:
             return self.client.recv(2048).decode()
         except socket.error as e:
             print(e)
+    
+    def send_with_puck(self, player_data, puck_data):
+        """Posiela pozíciu hráča a puku: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+        try:
+            puck_str = f"{puck_data['x']:.2f},{puck_data['y']:.2f},{puck_data['vx']:.2f},{puck_data['vy']:.2f}"
+            data = f"{player_data[0]},{player_data[1]}|{puck_str}"
+            self.client.send(str.encode(data))
+            return self.client.recv(2048).decode()
+        except socket.error as e:
+            print(e)
 
 
 # Alias used by main.py to keep naming consistent
