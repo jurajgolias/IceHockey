@@ -23,7 +23,7 @@ clock = pygame.time.Clock()
 
 clientNumber = 0
 class Player():
-    def __init__(self, x, y, width, height, color, x_min=0, x_max=None):
+    def __init__(self, x, y, width, height, color):
         self.x = x
         self.y = y
         self.width = width
@@ -31,22 +31,17 @@ class Player():
         self.color = color
         self.rect = (x,y,width,height)
         self.vel = 3
-        self.x_min = x_min
-        self.x_max = WIDTH - width if x_max is None else x_max
 
     def draw(self, win):
         pygame.draw.rect(win, self.color, self.rect)
 
     def move(self):
         mx, my = pygame.mouse.get_pos()
-        target_x = mx - self.width // 2
-        target_y = my - self.height // 2
+        mx = max(mx, WIDTH // 2)
+        my = max(90, min(my, HEIGHT - 90))
 
-        target_x = max(self.x_min, min(target_x, self.x_max))
-        target_y = max(90, min(target_y, HEIGHT - 90 - self.height // 2))
-
-        self.x = target_x
-        self.y = target_y
+        self.x = mx - self.width // 2
+        self.y = my - self.height // 2
 
         self.update()
 
@@ -193,17 +188,8 @@ def main():
     global mode
     client = Client()
     startPos = read_pos(client.getPos())
-    player_is_right = startPos[0] >= WIDTH // 2
-
-    if player_is_right:
-        p1_bounds = (WIDTH // 2, WIDTH - 180)
-        p2_bounds = (0, WIDTH // 2 - 180)
-    else:
-        p1_bounds = (0, WIDTH // 2 - 180)
-        p2_bounds = (WIDTH // 2, WIDTH - 180)
-
-    player = Player(startPos[0], startPos[1], 180, 180, (255,0,0), *p1_bounds)
-    player2 = Player(0, 0, 180, 180, (0,0,255), *p2_bounds)
+    player = Player (startPos[0], startPos[1], 180, 180, (255,0,0))
+    player2 = Player (0,0, 180, 180, (0,0,255))
     player2.update()
     run = True
 
