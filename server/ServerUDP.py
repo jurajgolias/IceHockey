@@ -15,7 +15,7 @@ except socket.error as e:
     sys.exit(1)
 
 s.listen(2)
-print("Waiting for a connection, Server Started")
+print("Waiting for a connection, Server Started",(server))
 
 def read_pos(str):
     str = str.split(",")
@@ -25,7 +25,8 @@ def read_pos(str):
 def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
 
-pos = [(0,0),(100,100)]
+# Starting positions: player 0 on left half, player 1 on right half
+pos = [(200, 350), (1080, 350)]
 
 def threaded_client(conn, player):
     conn.send(str.encode(make_pos(pos[player])))
