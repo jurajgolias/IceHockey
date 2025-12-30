@@ -234,13 +234,31 @@ def main():
                     run = False
             if mode != "menu" and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 mode = "menu"
+            if mode == "settings":
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    s_rect = slider_rect()
+                    if slider_hitbox().collidepoint(event.pos):
+                        rel_x = max(0, min(s_rect.width, event.pos[0] - s_rect.x))
+                        global music_volume, dragging_volume
+                        music_volume = rel_x / s_rect.width
+                        if mixer_ok:
+                            pygame.mixer.music.set_volume(music_volume)
+                        dragging_volume = True
+                if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                    dragging_volume = False
+                if event.type == pygame.MOUSEMOTION and dragging_volume:
+                    s_rect = slider_rect()
+                    rel_x = max(0, min(s_rect.width, event.pos[0] - s_rect.x))
+                    music_volume = rel_x / s_rect.width
+                    if mixer_ok:
+                        pygame.mixer.music.set_volume(music_volume)
 
         if mode == "menu":
             draw_menu()
         elif mode == "game":
             draw_game_scene(player, player2)
         elif mode == "settings":
-            draw_placeholder("NASTAVENIA (pripravujú sa)")
+            draw_settings()
         elif mode == "skins":
             draw_placeholder("SKINY (pripravujú sa)")
 
