@@ -200,7 +200,7 @@ def threaded_client(conn, player):
                 reply = make_response(pos[0], puck)
             else:
                 reply = make_response(pos[1], puck)
-            
+
             print("Received from player", player, ": ", data[:50])
             print("Sending to player", player, ": ", reply[:50])
 

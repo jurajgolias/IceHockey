@@ -380,6 +380,7 @@ def main():
 
     player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, *p1_bounds)
     player2 = Player(0, 0, 180, 180, modry_img, *p2_bounds)
+    
     player2.update()
     
     # Inicializácia puku - bude sa načítať zo servera
@@ -419,6 +420,7 @@ def main():
             player2Pos, server_puck = read_response(response)
             if player2Pos:
                 player2.x, player2.y = player2Pos
+                player2.update()
             if server_puck:
                 # Použijeme puk zo servera (autoritatívny)
                 puk['x'] = server_puck['x']

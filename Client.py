@@ -4,6 +4,7 @@ import socket
 class Client:
     def __init__(self):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client.settimeout(0.1)  # Timeout 100ms, aby sa neblokovalo
         self.server = "192.168.0.192"
         self.port = 5555
         self.addr = (self.server, self.port)
@@ -15,16 +16,23 @@ class Client:
     def connect(self):
         try:
             self.client.connect(self.addr)
-            return self.client.recv(2048).decode()
-        except:
-            pass
+            self.client.settimeout(2.0)  # Pri pripojení dlhší timeout
+            result = self.client.recv(2048).decode()
+            self.client.settimeout(0.1)  # Potom vrátime krátky timeout
+            return result
+        except Exception as e:
+            print(f"Connection error: {e}")
+            return None
 
     def send(self, data):
         try:
             self.client.send(str.encode(data))
             return self.client.recv(2048).decode()
+        except socket.timeout:
+            return None
         except socket.error as e:
-            print(e)
+            print(f"Send error: {e}")
+            return None
     
     def send_with_puck(self, player_data, puck_data):
         """Posiela pozíciu hráča a puku: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
@@ -33,8 +41,11 @@ class Client:
             data = f"{player_data[0]},{player_data[1]}|{puck_str}"
             self.client.send(str.encode(data))
             return self.client.recv(2048).decode()
+        except socket.timeout:
+            return None
         except socket.error as e:
-            print(e)
+            print(f"Send with puck error: {e}")
+            return None
 
 
 # Alias used by main.py to keep naming consistent
