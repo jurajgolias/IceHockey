@@ -471,19 +471,29 @@ def read_response(str):
 def main():
     global mode
     client = Client()
-    startPos = read_pos(client.getPos())
-    player_is_right = startPos[0] >= WIDTH // 2
+    initial_response = client.getPos()
+    player2Pos_from_server, initial_puck, _ = read_response(initial_response) if initial_response else (None, None, 0)
+    
+    if not player2Pos_from_server:
+        print("Error: Could not get initial position from server")
+        return
+    
+    # Server pošle pozíciu druhého hráča v počiatočnej odpovedi
+    # Player 0 dostane pozíciu player 1 (pravá strana), takže player 0 je na ľavej strane
+    # Player 1 dostane pozíciu player 0 (ľavá strana), takže player 1 je na pravej strane
+    player2_is_left = player2Pos_from_server[0] < WIDTH // 2
 
     # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
-    # Určíme, ktorý hráč sme na základe počiatočnej pozície
-    if player_is_right:
-        # Tento hráč je player 1 (modrý) - pravá polovica
-        player = Player(startPos[0], startPos[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
-        player2 = Player(0, 0, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+    if player2_is_left:
+        # Dostali sme pozíciu hráča na ľavej strane, takže sme player 1 (modrý) - pravá polovica
+        player = Player(1080, 350, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        # player2 je na opačnej strane - ľavá polovica (pozícia zo servera)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
     else:
-        # Tento hráč je player 0 (červený) - ľavá polovica
-        player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
-        player2 = Player(0, 0, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        # Dostali sme pozíciu hráča na pravej strane, takže sme player 0 (červený) - ľavá polovica
+        player = Player(200, 350, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        # player2 je na opačnej strane - pravá polovica (pozícia zo servera)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
     
     player2.update()
     
@@ -528,8 +538,8 @@ def main():
             response = client.send_with_puck(current_pos, puk)
             if response:
                 player2Pos, server_puck, players_ready = read_response(response)
-                if player2Pos and player2Pos[0] > 0 and player2Pos[1] > 0:
-                    # Aktualizujeme pozíciu druhého hráča (len ak je platná pozícia)
+                if player2Pos:
+                    # Aktualizujeme pozíciu druhého hráča
                     player2.x, player2.y = player2Pos
                     player2.update()
                     

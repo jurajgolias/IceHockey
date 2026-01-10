@@ -143,26 +143,29 @@ def check_collision_server(puck, player_pos, player_prev_pos, WIDTH=1280):
 
 def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
     """Aktualizuje puk na serveri"""
-    # Kontrola kolízie s pálkami
-    check_collision_server(puck, pos[0], prev_pos[0] if prev_pos and len(prev_pos) > 0 else None, WIDTH)
-    check_collision_server(puck, pos[1], prev_pos[1] if prev_pos and len(prev_pos) > 1 else None, WIDTH)
+    puck_radius = 40
     
-    # Trenie
-    friction = 0.98
+    # Kontrola kolízie s pálkami (iba ak sú pozície validné)
+    if pos[0] and (pos[0][0] > 0 or pos[0][1] > 0):
+        check_collision_server(puck, pos[0], prev_pos[0] if prev_pos and len(prev_pos) > 0 else None, WIDTH)
+    
+    if pos[1] and (pos[1][0] > 0 or pos[1][1] > 0):
+        check_collision_server(puck, pos[1], prev_pos[1] if prev_pos and len(prev_pos) > 1 else None, WIDTH)
+    
+    # Trenie (aplikujeme pred aktualizáciou pozície)
+    friction = 0.985
     puck['vx'] *= friction
     puck['vy'] *= friction
     
     # Zastavíme puk, ak je rýchlosť veľmi malá
-    if abs(puck['vx']) < 0.1:
+    if abs(puck['vx']) < 0.05:
         puck['vx'] = 0
-    if abs(puck['vy']) < 0.1:
+    if abs(puck['vy']) < 0.05:
         puck['vy'] = 0
     
     # Aktualizácia pozície
     puck['x'] += puck['vx']
     puck['y'] += puck['vy']
-    
-    puck_radius = 40
     
     # Odraz od stien (horizontálne)
     if puck['x'] - puck_radius < 0:
@@ -199,9 +202,14 @@ def threaded_client(conn, player):
                     player_data, puck_data = read_response(data)
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
-                        # Aktualizujeme pozíciu hráča bez prísnych obmedzení (umožníme pohyb po celej ploche)
+                        # Obmedzíme pozíciu hráča na jeho polovicu
                         player_width = 180
-                        x = max(0, min(player_data[0], WIDTH - player_width))
+                        if player == 0:
+                            # Player 0 (červený) - ľavá polovica (0 až WIDTH//2 - player_width)
+                            x = max(0, min(player_data[0], WIDTH // 2 - player_width))
+                        else:
+                            # Player 1 (modrý) - pravá polovica (WIDTH//2 až WIDTH - player_width)
+                            x = max(WIDTH // 2, min(player_data[0], WIDTH - player_width))
                         y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
                         pos[player] = (x, y)
                         
@@ -219,9 +227,14 @@ def threaded_client(conn, player):
                     player_data = read_pos(data)
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
-                        # Aktualizujeme pozíciu hráča bez prísnych obmedzení (umožníme pohyb po celej ploche)
+                        # Obmedzíme pozíciu hráča na jeho polovicu
                         player_width = 180
-                        x = max(0, min(player_data[0], WIDTH - player_width))
+                        if player == 0:
+                            # Player 0 (červený) - ľavá polovica (0 až WIDTH//2 - player_width)
+                            x = max(0, min(player_data[0], WIDTH // 2 - player_width))
+                        else:
+                            # Player 1 (modrý) - pravá polovica (WIDTH//2 až WIDTH - player_width)
+                            x = max(WIDTH // 2, min(player_data[0], WIDTH - player_width))
                         y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
                         pos[player] = (x, y)
                         
@@ -265,10 +278,10 @@ def game_loop():
     global puck, pos, prev_pos
     while True:
         with game_lock:
-            # Aktualizujeme puk len ak sú obaja hráči v hre
+            # Aktualizujeme puk ak sú obaja hráči v hre (aj počas countdownu a hry)
             players_ready_count = sum(players_in_game)
             if players_ready_count >= 2:
-                # Aktualizujeme puk (fyzika beží neustále)
+                # Aktualizujeme puk (fyzika beží neustále počas hry)
                 update_puck_server(puck, pos, prev_pos, WIDTH, HEIGHT)
         
         # Čakáme ~16ms pre 60 FPS
