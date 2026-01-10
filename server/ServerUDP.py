@@ -215,12 +215,15 @@ def threaded_client(conn, player):
                         
                         # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
                         # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
-                        pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
-                        is_not_initial = (x, y) != initial_positions[player]
-                        
-                        if (is_not_initial or pos_changed) and y >= 90:
-                            # Hráč posiela aktívnu pozíciu (nie počiatočnú alebo sa zmenila) - je na hracej ploche
-                            players_in_game[player] = True
+                        # Ak už je hráč v hre, zostane v hre (aj keď sa nehýbe alebo posiela rovnakú pozíciu)
+                        if not players_in_game[player]:
+                            # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
+                            pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
+                            is_not_initial = (x, y) != initial_positions[player]
+                            if (is_not_initial or pos_changed) and y >= 90:
+                                # Hráč posiela aktívnu pozíciu - je na hracej ploche
+                                players_in_game[player] = True
+                        # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)
                         # Puck dáta z klienta ignorujeme - server je autoritatívny
                 else:
                     # Starý formát - len pozícia hráča
@@ -240,12 +243,15 @@ def threaded_client(conn, player):
                         
                         # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
                         # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
-                        pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
-                        is_not_initial = (x, y) != initial_positions[player]
-                        
-                        if (is_not_initial or pos_changed) and y >= 90:
-                            # Hráč posiela aktívnu pozíciu (nie počiatočnú alebo sa zmenila) - je na hracej ploche
-                            players_in_game[player] = True
+                        # Ak už je hráč v hre, zostane v hre (aj keď sa nehýbe alebo posiela rovnakú pozíciu)
+                        if not players_in_game[player]:
+                            # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
+                            pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
+                            is_not_initial = (x, y) != initial_positions[player]
+                            if (is_not_initial or pos_changed) and y >= 90:
+                                # Hráč posiela aktívnu pozíciu - je na hracej ploche
+                                players_in_game[player] = True
+                        # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)
                 
                 # Počítame, koľko hráčov je na hracej ploche
                 players_ready_count = sum(players_in_game)
@@ -275,14 +281,18 @@ def threaded_client(conn, player):
 
 def game_loop():
     """Samostatný thread, ktorý aktualizuje puk neustále (60 FPS)"""
-    global puck, pos, prev_pos
+    global puck, pos, prev_pos, players_in_game
     while True:
         with game_lock:
             # Aktualizujeme puk ak sú obaja hráči v hre (aj počas countdownu a hry)
             players_ready_count = sum(players_in_game)
+            # Debug: vypíšeme stav players_in_game
             if players_ready_count >= 2:
                 # Aktualizujeme puk (fyzika beží neustále počas hry)
                 update_puck_server(puck, pos, prev_pos, WIDTH, HEIGHT)
+            elif players_ready_count > 0:
+                # Debug: len jeden hráč je v hre
+                pass
         
         # Čakáme ~16ms pre 60 FPS
         time.sleep(1.0 / 60.0)
