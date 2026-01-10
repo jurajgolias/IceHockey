@@ -2,6 +2,8 @@ import socket
 from _thread import *
 import sys
 import math
+import time
+import threading
 
 server = "192.168.0.192"
 port = 5555
@@ -41,9 +43,9 @@ def make_puck(puck):
     """Vytvorí reťazec pre puk: x,y,vx,vy"""
     return f"{puck['x']:.2f},{puck['y']:.2f},{puck['vx']:.2f},{puck['vy']:.2f}"
 
-def make_response(player_pos, puck):
-    """Vytvorí odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
-    return make_pos(player_pos) + "|" + make_puck(puck)
+def make_response(player_pos, puck, players_ready=0):
+    """Vytvorí odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
+    return make_pos(player_pos) + "|" + make_puck(puck) + "|" + str(players_ready)
 
 def read_response(str):
     """Číta odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
@@ -60,8 +62,21 @@ def read_response(str):
     return None, None
 
 # Starting positions: player 0 on left half, player 1 on right half
+WIDTH = 1280
+HEIGHT = 700
+# Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
 pos = [(200, 350), (1080, 350)]
 prev_pos = [None, None]  # Predchádzajúce pozície pre výpočet rýchlosti
+initial_positions = [(200, 350), (1080, 350)]  # Počiatočné pozície pre detekciu
+
+# Sledovanie hráčov
+connected_players = 0
+players_in_game = [False, False]  # Sleduje, ktorí hráči sú na hracej ploche (stlačili Hrať)
+game_started = False
+countdown_started = False
+
+# Thread lock pre bezpečný prístup k zdieľaným premenným
+game_lock = threading.Lock()
 
 # Puk - spoločný pre oboch hráčov
 puck = {
@@ -167,7 +182,7 @@ def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
 
 def threaded_client(conn, player):
     # Pošleme počiatočnú pozíciu hráča a puk
-    initial_response = make_response(pos[1 if player == 0 else 0], puck)
+    initial_response = make_response(pos[1 if player == 0 else 0], puck, 0)
     conn.send(str.encode(initial_response))
     
     while True:
@@ -179,30 +194,59 @@ def threaded_client(conn, player):
             
             # Formát: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy
             # Alebo starý formát len: player_x,player_y
-            if "|" in data:
-                player_data, puck_data = read_response(data)
-                if player_data:
-                    prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
-                    pos[player] = player_data
-                # Puck dáta z klienta ignorujeme - server je autoritatívny
-            else:
-                # Starý formát - len pozícia hráča
-                player_data = read_pos(data)
-                if player_data:
-                    prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
-                    pos[player] = player_data
-            
-            # Aktualizujeme puk na serveri (s kolíziami)
-            update_puck_server(puck, pos, prev_pos)
-            
-            # Pošleme pozíciu druhého hráča a aktuálny stav puku
-            if player == 1:
-                reply = make_response(pos[0], puck)
-            else:
-                reply = make_response(pos[1], puck)
+            with game_lock:
+                if "|" in data:
+                    player_data, puck_data = read_response(data)
+                    if player_data:
+                        prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
+                        # Aktualizujeme pozíciu hráča bez prísnych obmedzení (umožníme pohyb po celej ploche)
+                        player_width = 180
+                        x = max(0, min(player_data[0], WIDTH - player_width))
+                        y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
+                        pos[player] = (x, y)
+                        
+                        # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
+                        # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
+                        pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
+                        is_not_initial = (x, y) != initial_positions[player]
+                        
+                        if (is_not_initial or pos_changed) and y >= 90:
+                            # Hráč posiela aktívnu pozíciu (nie počiatočnú alebo sa zmenila) - je na hracej ploche
+                            players_in_game[player] = True
+                        # Puck dáta z klienta ignorujeme - server je autoritatívny
+                else:
+                    # Starý formát - len pozícia hráča
+                    player_data = read_pos(data)
+                    if player_data:
+                        prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
+                        # Aktualizujeme pozíciu hráča bez prísnych obmedzení (umožníme pohyb po celej ploche)
+                        player_width = 180
+                        x = max(0, min(player_data[0], WIDTH - player_width))
+                        y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
+                        pos[player] = (x, y)
+                        
+                        # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
+                        # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
+                        pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
+                        is_not_initial = (x, y) != initial_positions[player]
+                        
+                        if (is_not_initial or pos_changed) and y >= 90:
+                            # Hráč posiela aktívnu pozíciu (nie počiatočnú alebo sa zmenila) - je na hracej ploche
+                            players_in_game[player] = True
+                
+                # Počítame, koľko hráčov je na hracej ploche
+                players_ready_count = sum(players_in_game)
+                
+                # Pošleme pozíciu druhého hráča a aktuálny stav puku (v locku pre thread safety)
+                # Vytvoríme kópiu puku, aby sa nezmenil počas odosielania
+                puck_copy = {'x': puck['x'], 'y': puck['y'], 'vx': puck['vx'], 'vy': puck['vy']}
+                if player == 1:
+                    reply = make_response(pos[0], puck_copy, players_ready_count)
+                else:
+                    reply = make_response(pos[1], puck_copy, players_ready_count)
 
             print("Received from player", player, ": ", data[:50])
-            print("Sending to player", player, ": ", reply[:50])
+            print("Sending to player", player, ": ", reply[:50], f"players_ready: {players_ready_count}, pos[0]: {pos[0]}, pos[1]: {pos[1]}")
 
             conn.sendall(str.encode(reply))
         except Exception as e:
@@ -210,7 +254,28 @@ def threaded_client(conn, player):
             break
 
     print("Lost connection")
+    # Keď sa hráč odpojí, resetujeme jeho stav
+    players_in_game[player] = False
+    pos[player] = initial_positions[player]
+    prev_pos[player] = None
     conn.close()
+
+def game_loop():
+    """Samostatný thread, ktorý aktualizuje puk neustále (60 FPS)"""
+    global puck, pos, prev_pos
+    while True:
+        with game_lock:
+            # Aktualizujeme puk len ak sú obaja hráči v hre
+            players_ready_count = sum(players_in_game)
+            if players_ready_count >= 2:
+                # Aktualizujeme puk (fyzika beží neustále)
+                update_puck_server(puck, pos, prev_pos, WIDTH, HEIGHT)
+        
+        # Čakáme ~16ms pre 60 FPS
+        time.sleep(1.0 / 60.0)
+
+# Spustíme game loop thread
+start_new_thread(game_loop, ())
 
 currentPlayer = 0
 while True:

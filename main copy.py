@@ -76,16 +76,19 @@ small_font = pygame.font.Font(None, 32)
 
 # stavy
 mode = "menu"  
+game_state = "menu"  # menu, waiting, countdown, playing
 running = True
+countdown_time = 10
+countdown_start_time = 0
 
-# tlačidlá
+# tlačidlá - posunuté trochu vyššie
 BTN_W, BTN_H = 300, 60
 BTN_X = (WIDTH - BTN_W) // 2
 buttons = {
-    "play": pygame.Rect(BTN_X, 300, BTN_W, BTN_H),
-    "settings": pygame.Rect(BTN_X, 380, BTN_W, BTN_H),
-    "skins": pygame.Rect(BTN_X, 460, BTN_W, BTN_H),
-    "quit": pygame.Rect(BTN_X, 540, BTN_W, BTN_H),
+    "play": pygame.Rect(BTN_X, 350, BTN_W, BTN_H),
+    "settings": pygame.Rect(BTN_X, 430, BTN_W, BTN_H),
+    "skins": pygame.Rect(BTN_X, 510, BTN_W, BTN_H),
+    "quit": pygame.Rect(BTN_X, 590, BTN_W, BTN_H),
 }
 
 
@@ -105,15 +108,24 @@ def slider_hitbox():
 
 
 def draw_button(rect, label):
-    pygame.draw.rect(screen, WHITE, rect, border_radius=8)
+    # Polopriehľadné pozadie tlačidla
+    button_surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+    pygame.draw.rect(button_surface, (255, 255, 255, 200), button_surface.get_rect(), border_radius=8)
+    screen.blit(button_surface, rect)
+    
+    # Text tlačidla
     text = button_font.render(label, True, BLACK)
     screen.blit(text, text.get_rect(center=rect.center))
 
 
 def draw_menu():
-    screen.fill(PURPLE)
-    title = title_font.render("AIR HOCKEY", True, WHITE)
-    screen.blit(title, title.get_rect(center=(WIDTH // 2, 150)))
+    # Zobrazenie pozadia menu
+    if menu_img:
+        screen.blit(menu_img, (0, 0))
+    else:
+        screen.fill(PURPLE)
+    
+    # Tlačidlá s pekným umiestnením
     draw_button(buttons["play"], "Hrať")
     draw_button(buttons["settings"], "Nastavenia")
     draw_button(buttons["skins"], "Skiny")
@@ -127,30 +139,112 @@ def draw_placeholder(text):
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
 
-
-def draw_settings():
-    screen.fill(PURPLE)
-    title = title_font.render("NASTAVENIA", True, WHITE)
-    screen.blit(title, title.get_rect(center=(WIDTH // 2, 150)))
-
-    # slider
-    s_rect = slider_rect()
-    handle = slider_handle_rect()
-    pygame.draw.rect(screen, WHITE, s_rect)
-    pygame.draw.circle(screen, WHITE, handle.center, SLIDER_HANDLE_RADIUS)
-
-    label = small_font.render("Hlasitosť hudby", True, WHITE)
-    screen.blit(label, label.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 30)))
-
-    volume_text = small_font.render(f"{int(music_volume * 100)}%", True, WHITE)
-    screen.blit(volume_text, volume_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 30)))
-
-    if not mixer_ok:
-        warn = small_font.render("Audio sa nespustilo", True, GRAY)
-        screen.blit(warn, warn.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 110)))
-
+def draw_waiting_for_opponent(player, player2, puk):
+    """Zobrazí obrazovku čakania na súpera na hracej ploche"""
+    # Zobrazíme hraciu plochu
+    draw_game_scene(player, player2, puk)
+    
+    # Polopriehľadné pozadie pre text
+    waiting_bg = pygame.Surface((500, 150), pygame.SRCALPHA)
+    pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=20)
+    screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+    
+    waiting_text = title_font.render("Čaká sa na súpera...", True, WHITE)
+    screen.blit(waiting_text, waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+    
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+
+def draw_countdown(player, player2, puk):
+    """Zobrazí countdown na hracej ploche"""
+    global game_state, mode
+    
+    # Najprv zobrazíme hraciu plochu
+    draw_game_scene(player, player2, puk)
+    
+    # Vypočítame zostávajúci čas
+    current_time = pygame.time.get_ticks() / 1000.0
+    if countdown_start_time > 0:
+        elapsed = current_time - countdown_start_time
+        remaining = max(0, countdown_time - elapsed)
+        
+        if remaining > 0:
+            # Polopriehľadné pozadie pre countdown
+            countdown_bg = pygame.Surface((200, 200), pygame.SRCALPHA)
+            pygame.draw.rect(countdown_bg, (0, 0, 0, 180), countdown_bg.get_rect(), border_radius=20)
+            screen.blit(countdown_bg, countdown_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            
+            # Veľký countdown text
+            countdown_text = title_font.render(str(int(remaining) + 1), True, WHITE)
+            screen.blit(countdown_text, countdown_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            
+            start_text = small_font.render("Zápas sa začína!", True, WHITE)
+            screen.blit(start_text, start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+        else:
+            # Countdown skončil, začneme zápas
+            game_state = "playing"
+            mode = "game"
+    else:
+        # Ak ešte nebol spustený countdown, zobrazíme správu
+        waiting_bg = pygame.Surface((400, 100), pygame.SRCALPHA)
+        pygame.draw.rect(waiting_bg, (0, 0, 0, 180), waiting_bg.get_rect(), border_radius=20)
+        screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+        
+        waiting_text = title_font.render("Pripravuje sa zápas...", True, WHITE)
+        screen.blit(waiting_text, waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+
+
+def draw_settings():
+    # Zobrazenie pozadia menu aj v nastaveniach
+    if menu_img:
+        screen.blit(menu_img, (0, 0))
+    else:
+        screen.fill(PURPLE)
+    
+    # Nadpis - viac v strede
+    title = title_font.render("NASTAVENIA", True, WHITE)
+    title_surface = pygame.Surface((title.get_width() + 40, title.get_height() + 20), pygame.SRCALPHA)
+    pygame.draw.rect(title_surface, (0, 0, 0, 150), title_surface.get_rect(), border_radius=10)
+    screen.blit(title_surface, title_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 150)))
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 150)))
+
+    # Label pre hlasitosť - ako tlačidlo (pod logom)
+    label_rect = pygame.Rect(WIDTH // 2 - BTN_W // 2, 350, BTN_W, BTN_H)
+    draw_button(label_rect, "Hlasitosť hudby")
+
+    # Slider s pekným pozadím
+    s_rect = pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, 430, SLIDER_WIDTH, SLIDER_HEIGHT)
+    handle_x = s_rect.x + int(music_volume * s_rect.width)
+    handle_rect = pygame.Rect(handle_x - SLIDER_HANDLE_RADIUS, s_rect.centery - SLIDER_HANDLE_RADIUS, SLIDER_HANDLE_RADIUS * 2, SLIDER_HANDLE_RADIUS * 2)
+    
+    # Pozadie slidera
+    slider_bg = pygame.Surface((s_rect.width + 20, s_rect.height + 20), pygame.SRCALPHA)
+    pygame.draw.rect(slider_bg, (0, 0, 0, 150), slider_bg.get_rect(), border_radius=10)
+    screen.blit(slider_bg, slider_bg.get_rect(center=(WIDTH // 2, 430)))
+    
+    # Slider track (tmavší)
+    pygame.draw.rect(screen, (100, 100, 100), s_rect)
+    # Vyplnená časť slidera
+    filled_rect = pygame.Rect(s_rect.x, s_rect.y, int(music_volume * s_rect.width), s_rect.height)
+    pygame.draw.rect(screen, WHITE, filled_rect)
+    # Handle slidera
+    pygame.draw.circle(screen, WHITE, handle_rect.center, SLIDER_HANDLE_RADIUS)
+    pygame.draw.circle(screen, (200, 200, 200), handle_rect.center, SLIDER_HANDLE_RADIUS - 2)
+
+    # Percentá hlasitosti - ako tlačidlo
+    volume_rect = pygame.Rect(WIDTH // 2 - BTN_W // 2, 480, BTN_W, BTN_H)
+    draw_button(volume_rect, f"{int(music_volume * 100)}%")
+
+    if not mixer_ok:
+        warn = small_font.render("Audio sa nespustilo", True, (255, 100, 100))
+        warn_bg = pygame.Surface((warn.get_width() + 20, warn.get_height() + 10), pygame.SRCALPHA)
+        pygame.draw.rect(warn_bg, (0, 0, 0, 150), warn_bg.get_rect(), border_radius=8)
+        screen.blit(warn_bg, warn_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150)))
+        screen.blit(warn, warn.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150)))
+
+    # Hint pre návrat
+    hint = small_font.render("ESC - späť do menu", True, GRAY)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
 
 
 
@@ -185,6 +279,13 @@ try:
     background_img = pygame.transform.smoothscale(_loaded_bg, (WIDTH, HEIGHT))
 except pygame.error:
     background_img = None
+
+# Načítanie obrázka menu
+try:
+    _loaded_menu = pygame.image.load("images/menu.png").convert()
+    menu_img = pygame.transform.smoothscale(_loaded_menu, (WIDTH, HEIGHT))
+except pygame.error:
+    menu_img = None
 
 #def draw_paddle_follow_mouse():
 #    if not paddle_img:
@@ -345,12 +446,12 @@ def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
 
 def read_response(str):
-    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
     if not str:
-        return None, None
+        return None, None, 0
     try:
         parts = str.split("|")
-        if len(parts) == 2:
+        if len(parts) >= 2:
             player_pos = read_pos(parts[0])
             puck_parts = parts[1].split(",")
             if len(puck_parts) == 4:
@@ -360,10 +461,12 @@ def read_response(str):
                     'vx': float(puck_parts[2]),
                     'vy': float(puck_parts[3])
                 }
-                return player_pos, puck
+                # Počet hráčov na hracej ploche
+                players_ready = int(parts[2]) if len(parts) > 2 else 0
+                return player_pos, puck, players_ready
     except Exception as e:
         print("Error reading response:", e)
-    return None, None
+    return None, None, 0
 
 def main():
     global mode
@@ -371,17 +474,21 @@ def main():
     startPos = read_pos(client.getPos())
     player_is_right = startPos[0] >= WIDTH // 2
 
+    # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
+    # Určíme, ktorý hráč sme na základe počiatočnej pozície
     if player_is_right:
-        p1_bounds = (WIDTH // 2, WIDTH - 180)
-        p2_bounds = (0, WIDTH // 2 - 180)
+        # Tento hráč je player 1 (modrý) - pravá polovica
+        player = Player(startPos[0], startPos[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player2 = Player(0, 0, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
     else:
-        p1_bounds = (0, WIDTH // 2 - 180)
-        p2_bounds = (WIDTH // 2, WIDTH - 180)
-
-    player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, *p1_bounds)
-    player2 = Player(0, 0, 180, 180, modry_img, *p2_bounds)
+        # Tento hráč je player 0 (červený) - ľavá polovica
+        player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player2 = Player(0, 0, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
     
     player2.update()
+    
+    # Počiatočná pozícia pre komunikáciu so serverom
+    initial_player_pos = (player.x, player.y)
     
     # Inicializácia puku - bude sa načítať zo servera
     puk = {
@@ -402,32 +509,46 @@ def main():
     while run:
         clock.tick(60)
 
-        if mode == "game":
+        # Povolíme pohyb hráča aj počas čakania, countdownu a hry
+        if mode == "waiting" or mode == "game" or mode == "countdown":
             player.move()
-            
-            # Kontrola kolízie s pálkou (lokálne pre okamžitú odozvu)
-            check_collision_local(puk, player)
             
             # Uloženie predchádzajúcich pozícií
             player.prev_x = player.x
             player.prev_y = player.y
-            player2.prev_x = player2.x
-            player2.prev_y = player2.y
+            if hasattr(player2, 'prev_x'):
+                player2.prev_x = player2.x
+                player2.prev_y = player2.y
 
         # Posielame pozíciu hráča a puku na server, prijímame pozíciu druhého hráča a puk
-        response = client.send_with_puck((player.x, player.y), puk)
-        if response:
-            player2Pos, server_puck = read_response(response)
-            if player2Pos:
-                player2.x, player2.y = player2Pos
-                player2.update()
-            if server_puck:
-                # Použijeme puk zo servera (autoritatívny)
-                puk['x'] = server_puck['x']
-                puk['y'] = server_puck['y']
-                puk['vx'] = server_puck['vx']
-                puk['vy'] = server_puck['vy']
-        player2.update()
+        if mode == "waiting" or mode == "countdown" or mode == "game":
+            # Pošleme aktuálnu pozíciu hráča (keď klikne na "Hrať", začne posielať pozíciu svojou pálkou)
+            current_pos = (int(player.x), int(player.y))
+            
+            response = client.send_with_puck(current_pos, puk)
+            if response:
+                player2Pos, server_puck, players_ready = read_response(response)
+                if player2Pos and player2Pos[0] > 0 and player2Pos[1] > 0:
+                    # Aktualizujeme pozíciu druhého hráča (len ak je platná pozícia)
+                    player2.x, player2.y = player2Pos
+                    player2.update()
+                    
+                    # Ak sme v stave waiting a obaja hráči sú na hracej ploche (stlačili Hrať)
+                    if mode == "waiting" and players_ready >= 2:
+                        # Obaja hráči sú na hracej ploche, spustíme countdown
+                        print(f"Spúšťam countdown! Počet hráčov: {players_ready}")
+                        game_state = "countdown"
+                        mode = "countdown"
+                        countdown_start_time = pygame.time.get_ticks() / 1000.0
+                    elif mode == "waiting":
+                        print(f"Čakám na súpera. Počet hráčov: {players_ready}")
+                        
+                if server_puck:
+                    # Použijeme puk zo servera (autoritatívny)
+                    puk['x'] = server_puck['x']
+                    puk['y'] = server_puck['y']
+                    puk['vx'] = server_puck['vx']
+                    puk['vy'] = server_puck['vy']
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -435,7 +556,11 @@ def main():
             if mode == "menu" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = event.pos
                 if buttons["play"].collidepoint(pos):
-                    mode = "game"
+                    # Pripojíme sa do zápasu - čakáme na súpera
+                    game_state = "waiting"
+                    mode = "waiting"
+                    # Pošleme pozíciu hráča, aby server vedel, že sme na hracej ploche
+                    # Toto sa pošle v hlavnej slučke
                 elif buttons["settings"].collidepoint(pos):
                     mode = "settings"
                 elif buttons["skins"].collidepoint(pos):
@@ -443,28 +568,44 @@ def main():
                 elif buttons["quit"].collidepoint(pos):
                     run = False
             if mode != "menu" and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                mode = "menu"
+                if mode == "waiting" or mode == "countdown":
+                    # Vrátime sa do menu z čakania alebo countdownu
+                    game_state = "menu"
+                    mode = "menu"
+                else:
+                    mode = "menu"
             if mode == "settings":
+                # Slider v nastaveniach je na pozícii Y=430
+                settings_slider_rect = pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, 430, SLIDER_WIDTH, SLIDER_HEIGHT)
+                settings_slider_hitbox = settings_slider_rect.inflate(0, 24)
+                
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    s_rect = slider_rect()
-                    if slider_hitbox().collidepoint(event.pos):
-                        rel_x = max(0, min(s_rect.width, event.pos[0] - s_rect.x))
+                    if settings_slider_hitbox.collidepoint(event.pos):
+                        rel_x = max(0, min(settings_slider_rect.width, event.pos[0] - settings_slider_rect.x))
                         global music_volume, dragging_volume
-                        music_volume = rel_x / s_rect.width
+                        music_volume = rel_x / settings_slider_rect.width
                         if mixer_ok:
                             pygame.mixer.music.set_volume(music_volume)
                         dragging_volume = True
                 if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                     dragging_volume = False
                 if event.type == pygame.MOUSEMOTION and dragging_volume:
-                    s_rect = slider_rect()
-                    rel_x = max(0, min(s_rect.width, event.pos[0] - s_rect.x))
-                    music_volume = rel_x / s_rect.width
+                    rel_x = max(0, min(settings_slider_rect.width, event.pos[0] - settings_slider_rect.x))
+                    music_volume = rel_x / settings_slider_rect.width
                     if mixer_ok:
                         pygame.mixer.music.set_volume(music_volume)
 
         if mode == "menu":
             draw_menu()
+        elif mode == "waiting":
+            draw_waiting_for_opponent(player, player2, puk)
+        elif mode == "countdown":
+            draw_countdown(player, player2, puk)
+            # Kontrola, či countdown skončil
+            current_time = pygame.time.get_ticks() / 1000.0
+            if countdown_start_time > 0 and current_time - countdown_start_time >= countdown_time:
+                game_state = "playing"
+                mode = "game"
         elif mode == "game":
             draw_game_scene(player, player2, puk)
         elif mode == "settings":

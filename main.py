@@ -76,7 +76,10 @@ small_font = pygame.font.Font(None, 32)
 
 # stavy
 mode = "menu"  
+game_state = "menu"  # menu, waiting, countdown, playing
 running = True
+countdown_time = 10
+countdown_start_time = 0
 
 # tlačidlá - posunuté trochu vyššie
 BTN_W, BTN_H = 300, 60
@@ -135,6 +138,60 @@ def draw_placeholder(text):
     screen.blit(info, info.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+
+def draw_waiting_for_opponent(player, player2, puk):
+    """Zobrazí obrazovku čakania na súpera na hracej ploche"""
+    # Zobrazíme hraciu plochu
+    draw_game_scene(player, player2, puk)
+    
+    # Polopriehľadné pozadie pre text
+    waiting_bg = pygame.Surface((500, 150), pygame.SRCALPHA)
+    pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=20)
+    screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+    
+    waiting_text = title_font.render("Čaká sa na súpera...", True, WHITE)
+    screen.blit(waiting_text, waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+    
+    hint = small_font.render("ESC - späť do menu", True, GRAY)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+
+def draw_countdown(player, player2, puk):
+    """Zobrazí countdown na hracej ploche"""
+    global game_state, mode
+    
+    # Najprv zobrazíme hraciu plochu
+    draw_game_scene(player, player2, puk)
+    
+    # Vypočítame zostávajúci čas
+    current_time = pygame.time.get_ticks() / 1000.0
+    if countdown_start_time > 0:
+        elapsed = current_time - countdown_start_time
+        remaining = max(0, countdown_time - elapsed)
+        
+        if remaining > 0:
+            # Polopriehľadné pozadie pre countdown
+            countdown_bg = pygame.Surface((200, 200), pygame.SRCALPHA)
+            pygame.draw.rect(countdown_bg, (0, 0, 0, 180), countdown_bg.get_rect(), border_radius=20)
+            screen.blit(countdown_bg, countdown_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            
+            # Veľký countdown text
+            countdown_text = title_font.render(str(int(remaining) + 1), True, WHITE)
+            screen.blit(countdown_text, countdown_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+            
+            start_text = small_font.render("Zápas sa začína!", True, WHITE)
+            screen.blit(start_text, start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+        else:
+            # Countdown skončil, začneme zápas
+            game_state = "playing"
+            mode = "game"
+    else:
+        # Ak ešte nebol spustený countdown, zobrazíme správu
+        waiting_bg = pygame.Surface((400, 100), pygame.SRCALPHA)
+        pygame.draw.rect(waiting_bg, (0, 0, 0, 180), waiting_bg.get_rect(), border_radius=20)
+        screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
+        
+        waiting_text = title_font.render("Pripravuje sa zápas...", True, WHITE)
+        screen.blit(waiting_text, waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
 
 
 def draw_settings():
@@ -389,12 +446,12 @@ def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
 
 def read_response(str):
-    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
     if not str:
-        return None, None
+        return None, None, 0
     try:
         parts = str.split("|")
-        if len(parts) == 2:
+        if len(parts) >= 2:
             player_pos = read_pos(parts[0])
             puck_parts = parts[1].split(",")
             if len(puck_parts) == 4:
@@ -404,10 +461,12 @@ def read_response(str):
                     'vx': float(puck_parts[2]),
                     'vy': float(puck_parts[3])
                 }
-                return player_pos, puck
+                # Počet hráčov na hracej ploche
+                players_ready = int(parts[2]) if len(parts) > 2 else 0
+                return player_pos, puck, players_ready
     except Exception as e:
         print("Error reading response:", e)
-    return None, None
+    return None, None, 0
 
 def main():
     global mode
@@ -415,17 +474,21 @@ def main():
     startPos = read_pos(client.getPos())
     player_is_right = startPos[0] >= WIDTH // 2
 
+    # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
+    # Určíme, ktorý hráč sme na základe počiatočnej pozície
     if player_is_right:
-        p1_bounds = (WIDTH // 2, WIDTH - 180)
-        p2_bounds = (0, WIDTH // 2 - 180)
+        # Tento hráč je player 1 (modrý) - pravá polovica
+        player = Player(startPos[0], startPos[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player2 = Player(0, 0, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
     else:
-        p1_bounds = (0, WIDTH // 2 - 180)
-        p2_bounds = (WIDTH // 2, WIDTH - 180)
-
-    player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, *p1_bounds)
-    player2 = Player(0, 0, 180, 180, modry_img, *p2_bounds)
+        # Tento hráč je player 0 (červený) - ľavá polovica
+        player = Player(startPos[0], startPos[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player2 = Player(0, 0, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
     
     player2.update()
+    
+    # Počiatočná pozícia pre komunikáciu so serverom
+    initial_player_pos = (player.x, player.y)
     
     # Inicializácia puku - bude sa načítať zo servera
     puk = {
@@ -446,32 +509,46 @@ def main():
     while run:
         clock.tick(60)
 
-        if mode == "game":
+        # Povolíme pohyb hráča aj počas čakania, countdownu a hry
+        if mode == "waiting" or mode == "game" or mode == "countdown":
             player.move()
-            
-            # Kontrola kolízie s pálkou (lokálne pre okamžitú odozvu)
-            check_collision_local(puk, player)
             
             # Uloženie predchádzajúcich pozícií
             player.prev_x = player.x
             player.prev_y = player.y
-            player2.prev_x = player2.x
-            player2.prev_y = player2.y
+            if hasattr(player2, 'prev_x'):
+                player2.prev_x = player2.x
+                player2.prev_y = player2.y
 
         # Posielame pozíciu hráča a puku na server, prijímame pozíciu druhého hráča a puk
-        response = client.send_with_puck((player.x, player.y), puk)
-        if response:
-            player2Pos, server_puck = read_response(response)
-            if player2Pos:
-                player2.x, player2.y = player2Pos
-                player2.update()
-            if server_puck:
-                # Použijeme puk zo servera (autoritatívny)
-                puk['x'] = server_puck['x']
-                puk['y'] = server_puck['y']
-                puk['vx'] = server_puck['vx']
-                puk['vy'] = server_puck['vy']
-        player2.update()
+        if mode == "waiting" or mode == "countdown" or mode == "game":
+            # Pošleme aktuálnu pozíciu hráča (keď klikne na "Hrať", začne posielať pozíciu svojou pálkou)
+            current_pos = (int(player.x), int(player.y))
+            
+            response = client.send_with_puck(current_pos, puk)
+            if response:
+                player2Pos, server_puck, players_ready = read_response(response)
+                if player2Pos and player2Pos[0] > 0 and player2Pos[1] > 0:
+                    # Aktualizujeme pozíciu druhého hráča (len ak je platná pozícia)
+                    player2.x, player2.y = player2Pos
+                    player2.update()
+                    
+                    # Ak sme v stave waiting a obaja hráči sú na hracej ploche (stlačili Hrať)
+                    if mode == "waiting" and players_ready >= 2:
+                        # Obaja hráči sú na hracej ploche, spustíme countdown
+                        print(f"Spúšťam countdown! Počet hráčov: {players_ready}")
+                        game_state = "countdown"
+                        mode = "countdown"
+                        countdown_start_time = pygame.time.get_ticks() / 1000.0
+                    elif mode == "waiting":
+                        print(f"Čakám na súpera. Počet hráčov: {players_ready}")
+                        
+                if server_puck:
+                    # Použijeme puk zo servera (autoritatívny)
+                    puk['x'] = server_puck['x']
+                    puk['y'] = server_puck['y']
+                    puk['vx'] = server_puck['vx']
+                    puk['vy'] = server_puck['vy']
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -479,7 +556,11 @@ def main():
             if mode == "menu" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = event.pos
                 if buttons["play"].collidepoint(pos):
-                    mode = "game"
+                    # Pripojíme sa do zápasu - čakáme na súpera
+                    game_state = "waiting"
+                    mode = "waiting"
+                    # Pošleme pozíciu hráča, aby server vedel, že sme na hracej ploche
+                    # Toto sa pošle v hlavnej slučke
                 elif buttons["settings"].collidepoint(pos):
                     mode = "settings"
                 elif buttons["skins"].collidepoint(pos):
@@ -487,7 +568,12 @@ def main():
                 elif buttons["quit"].collidepoint(pos):
                     run = False
             if mode != "menu" and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                mode = "menu"
+                if mode == "waiting" or mode == "countdown":
+                    # Vrátime sa do menu z čakania alebo countdownu
+                    game_state = "menu"
+                    mode = "menu"
+                else:
+                    mode = "menu"
             if mode == "settings":
                 # Slider v nastaveniach je na pozícii Y=430
                 settings_slider_rect = pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, 430, SLIDER_WIDTH, SLIDER_HEIGHT)
@@ -511,6 +597,15 @@ def main():
 
         if mode == "menu":
             draw_menu()
+        elif mode == "waiting":
+            draw_waiting_for_opponent(player, player2, puk)
+        elif mode == "countdown":
+            draw_countdown(player, player2, puk)
+            # Kontrola, či countdown skončil
+            current_time = pygame.time.get_ticks() / 1000.0
+            if countdown_start_time > 0 and current_time - countdown_start_time >= countdown_time:
+                game_state = "playing"
+                mode = "game"
         elif mode == "game":
             draw_game_scene(player, player2, puk)
         elif mode == "settings":
