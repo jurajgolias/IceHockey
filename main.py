@@ -440,11 +440,6 @@ def draw_game_scene(player, player2, puk):
     
     player.draw(screen)
     player2.draw(screen)
-    
-    # Draw circular hitbox borders around paddles
-    pygame.draw.circle(screen, (255, 0, 0), player.get_center(), player.width // 2, 2)
-    pygame.draw.circle(screen, (0, 0, 255), player2.get_center(), player2.width // 2, 2)
-    
     # Zobrazenie puku
     if puk_img and puk:
         puk_rect = puk_img.get_rect(center=(puk['x'], puk['y']))
