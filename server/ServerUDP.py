@@ -172,7 +172,7 @@ def check_collision_server(puck, player_pos, player_prev_pos, WIDTH=1280):
 
 def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
     """Aktualizuje puk na serveri"""
-    puck_radius = 40
+    puck_radius = 26
     goal_width = 12
     goal_top = 90
     goal_bottom = HEIGHT - 90

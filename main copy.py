@@ -274,7 +274,7 @@ except pygame.error:
 # Načítanie obrázka puku
 try:
     _loaded_puk = pygame.image.load("images/puk.png").convert_alpha()
-    puk_img = pygame.transform.smoothscale(_loaded_puk, (80, 80))
+    puk_img = pygame.transform.smoothscale(_loaded_puk, (52, 52))
 except pygame.error:
     puk_img = None
 
@@ -304,7 +304,7 @@ except pygame.error:
 
 def check_collision(puck, player):
     """Kontroluje kolíziu medzi pukom a pálkou"""
-    puck_radius = 40  # Polomer puku (80/2)
+    puck_radius = 26  # Polomer puku (52/2)
     player_center = player.get_center()
     player_radius = 90  # Polomer pálky (180/2)
     
@@ -350,7 +350,7 @@ def check_collision(puck, player):
 
 def check_collision_local(puck, player):
     """Kontroluje kolíziu medzi pukom a pálkou lokálne (pre vizuálnu synchronizáciu)"""
-    puck_radius = 40
+    puck_radius = 26
     player_center = player.get_center()
     player_radius = 90
     
@@ -394,7 +394,7 @@ def update_puck(puck, player, player2):
     puck['x'] += puck['vx']
     puck['y'] += puck['vy']
     
-    puck_radius = 40
+    puck_radius = 26
     
     # Odraz od stien (horizontálne)
     if puck['x'] - puck_radius < 0:
