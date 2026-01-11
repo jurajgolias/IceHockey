@@ -4,14 +4,14 @@ from Client import Client
 
 # základné nastavenie okna
 pygame.init()
-music_volume = 0
+music_volume = 1.0
 dragging_volume = False
 mixer_ok = False
 try:
     pygame.mixer.init()
     pygame.mixer.music.load("sounds/soundtrack1.wav")
     pygame.mixer.music.set_volume(music_volume)
-    pygame.mixer.music.play(-1)  # hrá dookola
+    pygame.mixer.music.play(-1)
     mixer_ok = True
 except pygame.error as e:
     print("Hudbu sa nepodarilo spustiť:", e)
@@ -21,8 +21,6 @@ SLIDER_HANDLE_RADIUS = 14
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Air Hockey")
 clock = pygame.time.Clock()
-
-clientNumber = 0
 class Player():
     def __init__(self, x, y, width, height, image, x_min=0, x_max=None):
         self.x = x
@@ -100,16 +98,6 @@ def slider_rect():
     return pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, HEIGHT // 2, SLIDER_WIDTH, SLIDER_HEIGHT)
 
 
-def slider_handle_rect():
-    rect = slider_rect()
-    handle_x = rect.x + int(music_volume * rect.width)
-    return pygame.Rect(handle_x - SLIDER_HANDLE_RADIUS, rect.centery - SLIDER_HANDLE_RADIUS, SLIDER_HANDLE_RADIUS * 2, SLIDER_HANDLE_RADIUS * 2)
-
-
-def slider_hitbox():
-    return slider_rect().inflate(0, 24)
-
-
 def draw_button(rect, label):
     button_surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     pygame.draw.rect(button_surface, (255, 255, 255, 200), button_surface.get_rect(), border_radius=8)
@@ -132,13 +120,6 @@ def draw_menu():
     draw_button(buttons["skins"], "Skiny")
     draw_button(buttons["quit"], "Ukončiť")
 
-
-def draw_placeholder(text):
-    screen.fill(BLACK)
-    info = title_font.render(text, True, WHITE)
-    screen.blit(info, info.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
-    hint = small_font.render("ESC - späť do menu", True, GRAY)
-    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
 
 def draw_waiting_for_opponent(player, player2, puk):
     # Zobrazíme hraciu plochu
@@ -364,73 +345,6 @@ def check_collision(puck, player):
         return True
     return False
 
-def check_collision_local(puck, player):
-    puck_radius = 26
-    player_center = player.get_center()
-    player_radius = 90
-    
-    dx = puck['x'] - player_center[0]
-    dy = puck['y'] - player_center[1]
-    distance = math.sqrt(dx*dx + dy*dy)
-    
-    if distance < (puck_radius + player_radius):
-        if distance > 0:
-            nx = dx / distance
-            ny = dy / distance
-        else:
-            nx, ny = 1, 0
-        
-        player_vel_x = player.x - getattr(player, 'prev_x', player.x)
-        player_vel_y = player.y - getattr(player, 'prev_y', player.y)
-        
-        force = 8.0
-        puck['vx'] += nx * force
-        puck['vy'] += ny * force
-        
-        return True
-    return False
-
-def update_puck(puck, player, player2):
-    #Aktualizuje pozíciu a rýchlosť puku
-    friction = 0.98
-    puck['vx'] *= friction
-    puck['vy'] *= friction
-    
-    if abs(puck['vx']) < 0.1:
-        puck['vx'] = 0
-    if abs(puck['vy']) < 0.1:
-        puck['vy'] = 0
-    
-    puck['x'] += puck['vx']
-    puck['y'] += puck['vy']
-    
-    puck_radius = 26
-    
-    # Odraz od stien (horizontálne)
-    if puck['x'] - puck_radius < 0:
-        puck['x'] = puck_radius
-        puck['vx'] = -puck['vx'] * 0.8
-    elif puck['x'] + puck_radius > WIDTH:
-        puck['x'] = WIDTH - puck_radius
-        puck['vx'] = -puck['vx'] * 0.8
-    
-    # Odraz od stien (vertikálne)
-    if puck['y'] - puck_radius < 90: 
-        puck['y'] = 90 + puck_radius
-        puck['vy'] = -puck['vy'] * 0.8
-    elif puck['y'] + puck_radius > HEIGHT - 90: 
-        puck['y'] = HEIGHT - 90 - puck_radius
-        puck['vy'] = -puck['vy'] * 0.8
-    
-    check_collision(puck, player)
-    check_collision(puck, player2)
-    
-    # Uloženie predchádzajúcej pozície pálok
-    player.prev_x = player.x
-    player.prev_y = player.y
-    player2.prev_x = player2.x
-    player2.prev_y = player2.y
-
 def draw_game_scene(player, player2, puk):
     if background_img:
         screen.blit(background_img, (0, 0))
@@ -536,8 +450,6 @@ def main():
     
     player2.update()
     
-    initial_player_pos = (player.x, player.y)
-    
     puk = {
         'x': WIDTH // 2,
         'y': HEIGHT // 2,
@@ -589,7 +501,6 @@ def main():
                         print(f"Čakám na súpera. Počet hráčov: {players_ready}")
                         
                 if server_puck:
-                    puk_before = {'x': puk['x'], 'y': puk['y'], 'vx': puk['vx'], 'vy': puk['vy']}
                     puk['x'] = server_puck['x']
                     puk['y'] = server_puck['y']
                     puk['vx'] = server_puck['vx']

@@ -24,16 +24,6 @@ class Client:
             print(f"Connection error: {e}")
             return None
 
-    def send(self, data):
-        try:
-            self.client.send(str.encode(data))
-            return self.client.recv(2048).decode()
-        except socket.timeout:
-            return None
-        except socket.error as e:
-            print(f"Send error: {e}")
-            return None
-    
     def send_with_puck(self, player_data, puck_data):
         #Posiela pozíciu hráča a puku: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy
         try:

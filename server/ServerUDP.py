@@ -1,5 +1,5 @@
 import socket
-from _thread import *
+from _thread import start_new_thread
 import sys
 import math
 import time
@@ -75,12 +75,7 @@ HEIGHT = 700
 pos = [(200, 350, "cerveny"), (1080, 350, "modry")]
 prev_pos = [None, None]  
 initial_positions = [(200, 350), (1080, 350)] 
-
-# Sledovanie hráčov
-connected_players = 0
 players_in_game = [False, False]
-game_started = False
-countdown_started = False
 
 # Thread lock pre bezpečný prístup k zdieľaným premenným
 game_lock = threading.Lock()
