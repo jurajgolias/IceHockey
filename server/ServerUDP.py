@@ -124,19 +124,38 @@ def check_collision_server(puck, player_pos, player_prev_pos, WIDTH=1280):
             player_vel_x = 0
             player_vel_y = 0
         
-        # Relatívna rýchlosť
-        relative_vel_x = puck['vx'] - player_vel_x * 0.1
-        relative_vel_y = puck['vy'] - player_vel_y * 0.1
+        # Vždy aplikujeme silu - jednoduchá a spoľahlivá logika
+        puck_speed_before = math.sqrt(puck['vx']**2 + puck['vy']**2)
+        player_speed = math.sqrt(player_vel_x**2 + player_vel_y**2)
         
-        # Odraz - odrazíme rýchlosť podľa normály
-        dot_product = relative_vel_x * nx + relative_vel_y * ny
-        puck['vx'] = relative_vel_x - 2 * dot_product * nx + player_vel_x * 0.1
-        puck['vy'] = relative_vel_y - 2 * dot_product * ny + player_vel_y * 0.1
-        
-        # Pridáme silu od pálky
-        force = 8.0
-        puck['vx'] += nx * force
-        puck['vy'] += ny * force
+        # Ak je puk statický alebo má veľmi malú rýchlosť, použijeme väčšiu silu
+        if puck_speed_before < 0.5:
+            # Puk je statický alebo sa pohybuje veľmi pomaly - použitie jednoduchej sily
+            if player_speed > 0.1:
+                # Hráč sa pohybuje - použijeme rýchlosť hráča
+                speed_factor = min(player_speed * 4.0, 25.0)
+                puck['vx'] = nx * speed_factor + player_vel_x * 0.8
+                puck['vy'] = ny * speed_factor + player_vel_y * 0.8
+            else:
+                # Hráč stojí - minimálna sila
+                base_force = 15.0
+                puck['vx'] = nx * base_force
+                puck['vy'] = ny * base_force
+        else:
+            # Puk sa pohybuje - kombinácia odrazu a sily
+            # Relatívna rýchlosť
+            relative_vel_x = puck['vx'] - player_vel_x * 0.1
+            relative_vel_y = puck['vy'] - player_vel_y * 0.1
+            
+            # Odraz - odrazíme rýchlosť podľa normály
+            dot_product = relative_vel_x * nx + relative_vel_y * ny
+            puck['vx'] = relative_vel_x - 2 * dot_product * nx + player_vel_x * 0.1
+            puck['vy'] = relative_vel_y - 2 * dot_product * ny + player_vel_y * 0.1
+            
+            # Pridáme silu od pálky
+            base_force = 10.0
+            puck['vx'] += nx * base_force
+            puck['vy'] += ny * base_force
         
         return True
     return False
@@ -145,25 +164,32 @@ def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
     """Aktualizuje puk na serveri"""
     puck_radius = 40
     
-    # Kontrola kolízie s pálkami (iba ak sú pozície validné)
-    if pos[0] and (pos[0][0] > 0 or pos[0][1] > 0):
-        check_collision_server(puck, pos[0], prev_pos[0] if prev_pos and len(prev_pos) > 0 else None, WIDTH)
+    # VŽDY najprv kontrolujeme kolízie s pálkami (PRED čímkoľvek iným)
+    # Toto musí byť PRVÉ, aby kolízie fungovali aj keď je puk statický
+    # ODSTRÁNIME podmienky pre pozície - kontrolujeme vždy ak existujú pozície
+    collision_occurred = False
+    if pos[0] is not None:
+        collision_occurred = check_collision_server(puck, pos[0], prev_pos[0] if prev_pos and len(prev_pos) > 0 and prev_pos[0] else None, WIDTH) or collision_occurred
     
-    if pos[1] and (pos[1][0] > 0 or pos[1][1] > 0):
-        check_collision_server(puck, pos[1], prev_pos[1] if prev_pos and len(prev_pos) > 1 else None, WIDTH)
+    if pos[1] is not None:
+        collision_occurred = check_collision_server(puck, pos[1], prev_pos[1] if prev_pos and len(prev_pos) > 1 and prev_pos[1] else None, WIDTH) or collision_occurred
     
-    # Trenie (aplikujeme pred aktualizáciou pozície)
-    friction = 0.985
-    puck['vx'] *= friction
-    puck['vy'] *= friction
+    # AK bola kolízia, NEAKTUALIZUJEME trenie a rýchlosť - kolízia už nastavila rýchlosť
+    # Len ak NEBOLA kolízia, aplikujeme trenie
+    if not collision_occurred:
+        # Trenie aplikujeme len keď nebola kolízia
+        friction = 0.985
+        puck['vx'] *= friction
+        puck['vy'] *= friction
+        
+        # Zastavíme puk len ak je rýchlosť veľmi malá a NEbola kolízia
+        min_velocity_threshold = 0.1
+        if abs(puck['vx']) < min_velocity_threshold:
+            puck['vx'] = 0
+        if abs(puck['vy']) < min_velocity_threshold:
+            puck['vy'] = 0
     
-    # Zastavíme puk, ak je rýchlosť veľmi malá
-    if abs(puck['vx']) < 0.05:
-        puck['vx'] = 0
-    if abs(puck['vy']) < 0.05:
-        puck['vy'] = 0
-    
-    # Aktualizácia pozície
+    # Aktualizácia pozície (vždy, aj keď je rýchlosť 0)
     puck['x'] += puck['vx']
     puck['y'] += puck['vy']
     
