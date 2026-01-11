@@ -85,7 +85,7 @@ game_start_time = 0
 # Skóre hráčov
 scores = [0, 0]
 
-# tlačidlá - posunuté trochu vyššie
+# tlačidlá
 BTN_W, BTN_H = 300, 60
 BTN_X = (WIDTH - BTN_W) // 2
 buttons = {
@@ -107,17 +107,14 @@ def slider_handle_rect():
 
 
 def slider_hitbox():
-    # Slightly taller area so clicks near the handle still register
     return slider_rect().inflate(0, 24)
 
 
 def draw_button(rect, label):
-    # Polopriehľadné pozadie tlačidla
     button_surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
     pygame.draw.rect(button_surface, (255, 255, 255, 200), button_surface.get_rect(), border_radius=8)
     screen.blit(button_surface, rect)
     
-    # Text tlačidla
     text = button_font.render(label, True, BLACK)
     screen.blit(text, text.get_rect(center=rect.center))
 
@@ -129,7 +126,7 @@ def draw_menu():
     else:
         screen.fill(PURPLE)
     
-    # Tlačidlá s pekným umiestnením
+    # Tlačidlá menu
     draw_button(buttons["play"], "Hrať")
     draw_button(buttons["settings"], "Nastavenia")
     draw_button(buttons["skins"], "Skiny")
@@ -144,11 +141,9 @@ def draw_placeholder(text):
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
 
 def draw_waiting_for_opponent(player, player2, puk):
-    """Zobrazí obrazovku čakania na súpera na hracej ploche"""
     # Zobrazíme hraciu plochu
     draw_game_scene(player, player2, puk)
     
-    # Polopriehľadné pozadie pre text
     waiting_bg = pygame.Surface((550, 180), pygame.SRCALPHA)
     pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=25)
     screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
@@ -160,36 +155,29 @@ def draw_waiting_for_opponent(player, player2, puk):
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 70)))
 
 def draw_countdown(player, player2, puk):
-    """Zobrazí countdown na hracej ploche"""
     global game_state, mode
     
-    # Najprv zobrazíme hraciu plochu
     draw_game_scene(player, player2, puk)
     
-    # Vypočítame zostávajúci čas
     current_time = pygame.time.get_ticks() / 1000.0
     if countdown_start_time > 0:
         elapsed = current_time - countdown_start_time
         remaining = max(0, countdown_time - elapsed)
         
         if remaining > 0:
-            # Polopriehľadné pozadie pre countdown
             countdown_bg = pygame.Surface((200, 200), pygame.SRCALPHA)
             pygame.draw.rect(countdown_bg, (0, 0, 0, 180), countdown_bg.get_rect(), border_radius=20)
             screen.blit(countdown_bg, countdown_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
             
-            # Veľký countdown text
             countdown_text = title_font.render(str(int(remaining) + 1), True, WHITE)
             screen.blit(countdown_text, countdown_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
             
             start_text = small_font.render("Zápas sa začína!", True, WHITE)
             screen.blit(start_text, start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
         else:
-            # Countdown skončil, začneme zápas
             game_state = "playing"
             mode = "game"
     else:
-        # Ak ešte nebol spustený countdown, zobrazíme správu
         waiting_bg = pygame.Surface((550, 120), pygame.SRCALPHA)
         pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=25)
         screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
@@ -199,43 +187,39 @@ def draw_countdown(player, player2, puk):
 
 
 def draw_settings():
-    # Zobrazenie pozadia menu aj v nastaveniach
     if menu_img:
         screen.blit(menu_img, (0, 0))
     else:
         screen.fill(PURPLE)
     
-    # Nadpis - viac v strede
+    # Nadpis
     title = title_font.render("NASTAVENIA", True, WHITE)
     title_surface = pygame.Surface((title.get_width() + 40, title.get_height() + 20), pygame.SRCALPHA)
     pygame.draw.rect(title_surface, (0, 0, 0, 150), title_surface.get_rect(), border_radius=10)
     screen.blit(title_surface, title_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 150)))
     screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 150)))
 
-    # Label pre hlasitosť - ako tlačidlo (pod logom)
+    # Label pre hlasitosť
     label_rect = pygame.Rect(WIDTH // 2 - BTN_W // 2, 350, BTN_W, BTN_H)
     draw_button(label_rect, "Hlasitosť hudby")
 
-    # Slider s pekným pozadím
+    # Slider
     s_rect = pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, 430, SLIDER_WIDTH, SLIDER_HEIGHT)
     handle_x = s_rect.x + int(music_volume * s_rect.width)
     handle_rect = pygame.Rect(handle_x - SLIDER_HANDLE_RADIUS, s_rect.centery - SLIDER_HANDLE_RADIUS, SLIDER_HANDLE_RADIUS * 2, SLIDER_HANDLE_RADIUS * 2)
     
-    # Pozadie slidera
     slider_bg = pygame.Surface((s_rect.width + 20, s_rect.height + 20), pygame.SRCALPHA)
     pygame.draw.rect(slider_bg, (0, 0, 0, 150), slider_bg.get_rect(), border_radius=10)
     screen.blit(slider_bg, slider_bg.get_rect(center=(WIDTH // 2, 430)))
     
-    # Slider track (tmavší)
     pygame.draw.rect(screen, (100, 100, 100), s_rect)
-    # Vyplnená časť slidera
     filled_rect = pygame.Rect(s_rect.x, s_rect.y, int(music_volume * s_rect.width), s_rect.height)
     pygame.draw.rect(screen, WHITE, filled_rect)
-    # Handle slidera
+
     pygame.draw.circle(screen, WHITE, handle_rect.center, SLIDER_HANDLE_RADIUS)
     pygame.draw.circle(screen, (200, 200, 200), handle_rect.center, SLIDER_HANDLE_RADIUS - 2)
 
-    # Percentá hlasitosti - ako tlačidlo
+    # Percentá hlasitosti
     volume_rect = pygame.Rect(WIDTH // 2 - BTN_W // 2, 480, BTN_W, BTN_H)
     draw_button(volume_rect, f"{int(music_volume * 100)}%")
 
@@ -246,13 +230,11 @@ def draw_settings():
         screen.blit(warn_bg, warn_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150)))
         screen.blit(warn, warn.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150)))
 
-    # Hint pre návrat
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
 
 
 def draw_skins():
-    # Zobrazenie pozadia menu
     if menu_img:
         screen.blit(menu_img, (0, 0))
     else:
@@ -265,10 +247,9 @@ def draw_skins():
     screen.blit(title_surface, title_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 200)))
     screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 200)))
     
-    # Zobrazenie skín v mriežke
+    # Zobrazenie skinov
     skin_buttons = {}
     cols = 4
-    rows = 2
     start_x = (WIDTH - (cols * 140)) // 2
     start_y = HEIGHT // 2 - 100
     for i, skin in enumerate(skin_names):
@@ -279,7 +260,6 @@ def draw_skins():
         rect = pygame.Rect(x, y, 120, 120)
         skin_buttons[skin] = rect
         
-        # Polopriehľadné pozadie pre skínu
         bg_surface = pygame.Surface((130, 130), pygame.SRCALPHA)
         if skin == selected_skin:
             pygame.draw.rect(bg_surface, (255, 255, 255, 200), bg_surface.get_rect(), border_radius=10)
@@ -287,27 +267,16 @@ def draw_skins():
             pygame.draw.rect(bg_surface, (255, 255, 255, 100), bg_surface.get_rect(), border_radius=10)
         screen.blit(bg_surface, (x - 5, y - 5))
         
-        # Zobrazenie obrázka skíny
         if skin_images[skin]:
             screen.blit(skin_images[skin], (x, y))
         
-        # Názov skíny
         name_text = small_font.render(skin.capitalize(), True, BLACK)
         screen.blit(name_text, name_text.get_rect(center=(x + 60, y + 135)))
     
-    # Hint pre návrat
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
     
     return skin_buttons
-
-
-
-try:
-    _loaded = pygame.image.load("images/palka.png").convert_alpha()
-    paddle_img = pygame.transform.smoothscale(_loaded, (120, 120))
-except pygame.error:
-    paddle_img = None
 
 # Načítanie obrázkov pálok pre hráčov
 try:
@@ -329,15 +298,16 @@ try:
 except pygame.error:
     puk_img = None
 
+# Načítanie obrázka pozadia ihriska
+
 try:
     _loaded_bg = pygame.image.load("images/lad.png").convert()
     background_img = pygame.transform.smoothscale(_loaded_bg, (WIDTH, HEIGHT))
 except pygame.error:
     background_img = None
 
-# Načítanie obrázkov skín
 skin_images = {}
-skin_names = ["cerveny", "modry", "pusovce", "ruzovy", "safi", "tatran", "zeleny"]
+skin_names = ["cerveny", "modry", "pusovce", "ruzovy", "safi", "tatran", "zeleny", "spse"]
 for skin in skin_names:
     try:
         _loaded = pygame.image.load(f"images/{skin}.png").convert_alpha()
@@ -345,7 +315,6 @@ for skin in skin_names:
     except pygame.error:
         skin_images[skin] = None
 
-# Vybraná skina pre hráča
 selected_skin = "cerveny"
 
 try:
@@ -354,56 +323,40 @@ try:
 except pygame.error:
     menu_img = None
 
-#def draw_paddle_follow_mouse():
-#    if not paddle_img:
-#       return
-
-#    mx, my = pygame.mouse.get_pos()
-#    mx = max(mx, WIDTH // 2)
-#    my = max(90, min(my, HEIGHT - 90))
-#    rect = paddle_img.get_rect(center=(mx, my))
-#    screen.blit(paddle_img, rect)
-
-
 def check_collision(puck, player):
-    """Kontroluje kolíziu medzi pukom a pálkou"""
-    puck_radius = 26  # Polomer puku (52/2)
+    #Kontroluje kolíziu medzi pukom a pálkou
+    puck_radius = 26 
     player_center = player.get_center()
-    player_radius = 90  # Polomer pálky (180/2)
+    player_radius = 90 
     
-    # Vzdialenosť medzi stredmi
     dx = puck['x'] - player_center[0]
     dy = puck['y'] - player_center[1]
     distance = math.sqrt(dx*dx + dy*dy)
     
-    # Ak sú v kolízii
     if distance < (puck_radius + player_radius):
-        # Normalizovaný vektor smeru
         if distance > 0:
             nx = dx / distance
             ny = dy / distance
         else:
             nx, ny = 1, 0
         
-        # Presun puku mimo kolízie
         overlap = (puck_radius + player_radius) - distance
         puck['x'] += nx * overlap
         puck['y'] += ny * overlap
         
-        # Rýchlosť pálky (zmena pozície)
+        # Rýchlosť pálky
         player_vel_x = player.x - getattr(player, 'prev_x', player.x)
         player_vel_y = player.y - getattr(player, 'prev_y', player.y)
         
-        # Relatívna rýchlosť
         relative_vel_x = puck['vx'] - player_vel_x * 0.1
         relative_vel_y = puck['vy'] - player_vel_y * 0.1
         
-        # Odraz - odrazíme rýchlosť podľa normály
+        # Odraz
         dot_product = relative_vel_x * nx + relative_vel_y * ny
         puck['vx'] = relative_vel_x - 2 * dot_product * nx + player_vel_x * 0.1
         puck['vy'] = relative_vel_y - 2 * dot_product * ny + player_vel_y * 0.1
         
-        # Pridáme silu od pálky
+        # Pridanie silu od pálky
         force = 8.0
         puck['vx'] += nx * force
         puck['vy'] += ny * force
@@ -412,7 +365,6 @@ def check_collision(puck, player):
     return False
 
 def check_collision_local(puck, player):
-    """Kontroluje kolíziu medzi pukom a pálkou lokálne (pre vizuálnu synchronizáciu)"""
     puck_radius = 26
     player_center = player.get_center()
     player_radius = 90
@@ -428,11 +380,9 @@ def check_collision_local(puck, player):
         else:
             nx, ny = 1, 0
         
-        # Rýchlosť pálky
         player_vel_x = player.x - getattr(player, 'prev_x', player.x)
         player_vel_y = player.y - getattr(player, 'prev_y', player.y)
         
-        # Pridáme silu od pálky
         force = 8.0
         puck['vx'] += nx * force
         puck['vy'] += ny * force
@@ -441,19 +391,16 @@ def check_collision_local(puck, player):
     return False
 
 def update_puck(puck, player, player2):
-    """Aktualizuje pozíciu a rýchlosť puku"""
-    # Trenie
+    #Aktualizuje pozíciu a rýchlosť puku
     friction = 0.98
     puck['vx'] *= friction
     puck['vy'] *= friction
     
-    # Zastavíme puk, ak je rýchlosť veľmi malá
     if abs(puck['vx']) < 0.1:
         puck['vx'] = 0
     if abs(puck['vy']) < 0.1:
         puck['vy'] = 0
     
-    # Aktualizácia pozície
     puck['x'] += puck['vx']
     puck['y'] += puck['vy']
     
@@ -467,19 +414,18 @@ def update_puck(puck, player, player2):
         puck['x'] = WIDTH - puck_radius
         puck['vx'] = -puck['vx'] * 0.8
     
-    # Odraz od stien (vertikálne) - s ohraničením pre hru
-    if puck['y'] - puck_radius < 90:  # Horná stena
+    # Odraz od stien (vertikálne)
+    if puck['y'] - puck_radius < 90: 
         puck['y'] = 90 + puck_radius
         puck['vy'] = -puck['vy'] * 0.8
-    elif puck['y'] + puck_radius > HEIGHT - 90:  # Dolná stena
+    elif puck['y'] + puck_radius > HEIGHT - 90: 
         puck['y'] = HEIGHT - 90 - puck_radius
         puck['vy'] = -puck['vy'] * 0.8
     
-    # Kontrola kolízie s pálkami
     check_collision(puck, player)
     check_collision(puck, player2)
     
-    # Uloženie predchádzajúcej pozície pálok pre výpočet rýchlosti
+    # Uloženie predchádzajúcej pozície pálok
     player.prev_x = player.x
     player.prev_y = player.y
     player2.prev_x = player2.x
@@ -490,19 +436,15 @@ def draw_game_scene(player, player2, puk):
         screen.blit(background_img, (0, 0))
     else:
         screen.fill(WHITE)
-    #draw_paddle_follow_mouse()
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 30)))
     
-    # Vykreslenie brán na oboch stranách ihriska
-    goal_width = 12  # Šírka brany v pixeloch
-    goal_top = 90  # Začiatok brany vertikálne
-    goal_bottom = HEIGHT - 90  # Koniec brany vertikálne
-    goal_height = goal_bottom - goal_top  # Výška brany
+    goal_width = 12 
+    goal_top = 90 
+    goal_bottom = HEIGHT - 90  
+    goal_height = goal_bottom - goal_top  
     
-    # Ľavá brána (pre hráča 1)
     pygame.draw.rect(screen, PURPLE, (0, goal_top, goal_width, goal_height))
-    # Pravá brána (pre hráča 2)
     pygame.draw.rect(screen, PURPLE, (WIDTH - goal_width, goal_top, goal_width, goal_height))
     
     player.draw(screen)
@@ -545,7 +487,7 @@ def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
 
 def read_response(str):
-    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready|score0,score1"""
+   
     if not str:
         return None, None, 0, [0, 0]
     try:
@@ -560,7 +502,6 @@ def read_response(str):
                     'vx': float(puck_parts[2]),
                     'vy': float(puck_parts[3])
                 }
-                # Počet hráčov na hracej ploche
                 players_ready = int(parts[2]) if len(parts) > 2 else 0
                 scores = [0, 0]
                 if len(parts) > 3:
@@ -579,35 +520,24 @@ def main():
     player2Pos_from_server, initial_puck, _, initial_scores = read_response(initial_response) if initial_response else (None, None, 0, [0, 0])
     
     if not player2Pos_from_server:
-        print("Error: Could not get initial position from server")
+        print("Chyba: Nepodarilo sa získať počiatočnú pozíciu od servera.")
         return
     
-    # Nastavíme počiatočné skóre
     scores[:] = initial_scores
     
-    # Server pošle pozíciu druhého hráča v počiatočnej odpovedi
-    # Player 0 dostane pozíciu player 1 (pravá strana), takže player 0 je na ľavej strane
-    # Player 1 dostane pozíciu player 0 (ľavá strana), takže player 1 je na pravej strane
     player2_is_left = player2Pos_from_server[0] < WIDTH // 2
 
-    # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
     if player2_is_left:
-        # Dostali sme pozíciu hráča na ľavej strane, takže sme player 1 (modrý) - pravá polovica
         player = Player(1080, 350, 120, 120, skin_images[selected_skin], WIDTH // 2, WIDTH - 120)
-        # player2 je na opačnej strane - ľavá polovica (pozícia zo servera)
         player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, skin_images[player2Pos_from_server[2]], 0, WIDTH // 2 - 120)
     else:
-        # Dostali sme pozíciu hráča na pravej strane, takže sme player 0 (červený) - ľavá polovica
         player = Player(200, 350, 120, 120, skin_images[selected_skin], 0, WIDTH // 2 - 120)
-        # player2 je na opačnej strane - pravá polovica (pozícia zo servera)
         player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, skin_images[player2Pos_from_server[2]], WIDTH // 2, WIDTH - 120)
     
     player2.update()
     
-    # Počiatočná pozícia pre komunikáciu so serverom
     initial_player_pos = (player.x, player.y)
     
-    # Inicializácia puku - bude sa načítať zo servera
     puk = {
         'x': WIDTH // 2,
         'y': HEIGHT // 2,
@@ -615,7 +545,6 @@ def main():
         'vy': 0.0
     }
     
-    # Inicializácia predchádzajúcich pozícií pálok
     player.prev_x = player.x
     player.prev_y = player.y
     player2.prev_x = player2.x
@@ -626,11 +555,9 @@ def main():
     while run:
         clock.tick(60)
 
-        # Povolíme pohyb hráča len počas hry
         if mode == "game":
             player.move()
             
-            # Uloženie predchádzajúcich pozícií
             player.prev_x = player.x
             player.prev_y = player.y
             if hasattr(player2, 'prev_x'):
@@ -639,7 +566,6 @@ def main():
 
         # Posielame pozíciu hráča a puku na server, prijímame pozíciu druhého hráča a puk
         if mode == "waiting" or mode == "countdown" or mode == "game":
-            # Pošleme aktuálnu pozíciu hráča (keď klikne na "Hrať", začne posielať pozíciu svojou pálkou)
             current_pos = (int(player.x), int(player.y), selected_skin)
             
             response = client.send_with_puck(current_pos, puk)
@@ -654,9 +580,7 @@ def main():
                     # Aktualizujeme skóre
                     scores[:] = scores_from_server
                     
-                    # Ak sme v stave waiting a obaja hráči sú na hracej ploche (stlačili Hrať)
                     if mode == "waiting" and players_ready >= 2:
-                        # Obaja hráči sú na hracej ploche, spustíme countdown
                         print(f"Spúšťam countdown! Počet hráčov: {players_ready}")
                         game_state = "countdown"
                         mode = "countdown"
@@ -665,19 +589,11 @@ def main():
                         print(f"Čakám na súpera. Počet hráčov: {players_ready}")
                         
                 if server_puck:
-                    # Použijeme puk zo servera (autoritatívny)
                     puk_before = {'x': puk['x'], 'y': puk['y'], 'vx': puk['vx'], 'vy': puk['vy']}
                     puk['x'] = server_puck['x']
                     puk['y'] = server_puck['y']
                     puk['vx'] = server_puck['vx']
                     puk['vy'] = server_puck['vy']
-                    # DEBUG: Vypíšeme len v prípade problémov (menej výstupu)
-                    # if puk['vx'] == 0 and puk['vy'] == 0:
-                    #     print(f"[CLIENT] WARNING: Puck velocity is ZERO! pos=({puk['x']:.1f},{puk['y']:.1f})")
-                # else:
-                #     print(f"[CLIENT] WARNING: server_puck is None or empty!")
-                #     if response:
-                #         print(f"[CLIENT] Response was: {response[:100]}")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -685,12 +601,9 @@ def main():
             if mode == "menu" and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 pos = event.pos
                 if buttons["play"].collidepoint(pos):
-                    # Pripojíme sa do zápasu - čakáme na súpera
                     game_state = "waiting"
                     mode = "waiting"
                     player.image = skin_images[selected_skin]
-                    # Pošleme pozíciu hráča, aby server vedel, že sme na hracej ploche
-                    # Toto sa pošle v hlavnej slučke
                 elif buttons["settings"].collidepoint(pos):
                     mode = "settings"
                 elif buttons["skins"].collidepoint(pos):
@@ -699,13 +612,11 @@ def main():
                     run = False
             if mode != "menu" and event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 if mode == "waiting" or mode == "countdown":
-                    # Vrátime sa do menu z čakania alebo countdownu
                     game_state = "menu"
                     mode = "menu"
                 else:
                     mode = "menu"
             if mode == "settings":
-                # Slider v nastaveniach je na pozícii Y=430
                 settings_slider_rect = pygame.Rect(WIDTH // 2 - SLIDER_WIDTH // 2, 430, SLIDER_WIDTH, SLIDER_HEIGHT)
                 settings_slider_hitbox = settings_slider_rect.inflate(0, 24)
                 
@@ -740,7 +651,6 @@ def main():
             draw_waiting_for_opponent(player, player2, puk)
         elif mode == "countdown":
             draw_countdown(player, player2, puk)
-            # Kontrola, či countdown skončil
             current_time = pygame.time.get_ticks() / 1000.0
             if countdown_start_time > 0 and current_time - countdown_start_time >= countdown_time:
                 game_state = "playing"

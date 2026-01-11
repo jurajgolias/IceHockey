@@ -4,8 +4,8 @@ import socket
 class Client:
     def __init__(self):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.settimeout(0.3)  # Timeout 300ms, aby sa neblokovalo (zvýšené kvôli lock contention na serveri)
-        self.server = "192.168.68.110"
+        self.client.settimeout(0.3) 
+        self.server = "192.168.68.113" # Zmeniť podľa IP adresy servera
         self.port = 5555
         self.addr = (self.server, self.port)
         self.pos = self.connect()
@@ -16,9 +16,9 @@ class Client:
     def connect(self):
         try:
             self.client.connect(self.addr)
-            self.client.settimeout(2.0)  # Pri pripojení dlhší timeout
+            self.client.settimeout(2.0) 
             result = self.client.recv(2048).decode()
-            self.client.settimeout(0.3)  # Potom vrátime timeout 300ms
+            self.client.settimeout(0.3)
             return result
         except Exception as e:
             print(f"Connection error: {e}")
@@ -35,13 +35,12 @@ class Client:
             return None
     
     def send_with_puck(self, player_data, puck_data):
-        """Posiela pozíciu hráča a puku: player_x,player_y,skin|puck_x,puck_y,puck_vx,puck_vy"""
+        #Posiela pozíciu hráča a puku: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy
         try:
             puck_str = f"{puck_data['x']:.2f},{puck_data['y']:.2f},{puck_data['vx']:.2f},{puck_data['vy']:.2f}"
-            data = f"{player_data[0]},{player_data[1]},{player_data[2]}|{puck_str}"
+            data = f"{player_data[0]},{player_data[1]}|{puck_str}"
             self.client.send(str.encode(data))
             response = self.client.recv(2048).decode()
-            # DEBUG: Vypíšeme, ak timeout alebo chyba
             if not response:
                 print(f"[CLIENT] WARNING: Empty response from server!")
             return response
@@ -52,6 +51,4 @@ class Client:
             print(f"[CLIENT] Send with puck error: {e}")
             return None
 
-
-# Alias used by main.py to keep naming consistent
 Network = Client
