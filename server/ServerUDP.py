@@ -43,24 +43,30 @@ def make_puck(puck):
     """Vytvorí reťazec pre puk: x,y,vx,vy"""
     return f"{puck['x']:.2f},{puck['y']:.2f},{puck['vx']:.2f},{puck['vy']:.2f}"
 
-def make_response(player_pos, puck, players_ready=0):
-    """Vytvorí odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
-    return make_pos(player_pos) + "|" + make_puck(puck) + "|" + str(players_ready)
+def make_response(player_pos, puck, players_ready=0, scores=None):
+    """Vytvorí odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready|score0,score1"""
+    score_str = f"{scores[0]},{scores[1]}" if scores else "0,0"
+    return make_pos(player_pos) + "|" + make_puck(puck) + "|" + str(players_ready) + "|" + score_str
 
 def read_response(str):
-    """Číta odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
+    """Číta odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready|score0,score1"""
     if not str:
-        return None, None, 0
+        return None, None, 0, [0, 0]
     try:
         parts = str.split("|")
         if len(parts) >= 2:
             player_pos = read_pos(parts[0])
             puck_data = read_puck(parts[1])
             players_ready = int(parts[2]) if len(parts) > 2 else 0
-            return player_pos, puck_data, players_ready
+            scores = [0, 0]
+            if len(parts) > 3:
+                score_parts = parts[3].split(",")
+                if len(score_parts) == 2:
+                    scores = [int(score_parts[0]), int(score_parts[1])]
+            return player_pos, puck_data, players_ready, scores
     except Exception as e:
         print(f"Error reading response: {e}, str: {str[:100]}")
-    return None, None, 0
+    return None, None, 0, [0, 0]
 
 # Starting positions: player 0 on left half, player 1 on right half
 WIDTH = 1280
@@ -86,6 +92,9 @@ puck = {
     'vx': 0.0,
     'vy': 0.0
 }
+
+# Skóre hráčov
+scores = [0, 0]
 
 def check_collision_server(puck, player_pos, player_prev_pos, WIDTH=1280):
     """Kontroluje kolíziu medzi pukom a pálkou na serveri"""
@@ -164,6 +173,9 @@ def check_collision_server(puck, player_pos, player_prev_pos, WIDTH=1280):
 def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
     """Aktualizuje puk na serveri"""
     puck_radius = 40
+    goal_width = 12
+    goal_top = 90
+    goal_bottom = HEIGHT - 90
     
     # VŽDY najprv kontrolujeme kolízie s pálkami (PRED čímkoľvek iným)
     # Toto musí byť PRVÉ, aby kolízie fungovali aj keď je puk statický
@@ -194,13 +206,29 @@ def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
     puck['x'] += puck['vx']
     puck['y'] += puck['vy']
     
-    # Odraz od stien (horizontálne)
+    # Kontrola gólov a odraz od stien (horizontálne)
     if puck['x'] - puck_radius < 0:
-        puck['x'] = puck_radius
-        puck['vx'] = -puck['vx'] * 0.8
+        if puck['y'] >= goal_top and puck['y'] <= goal_bottom:
+            # Gól pre hráča 1 (pravý hráč)
+            scores[1] += 1
+            puck['x'] = WIDTH // 2
+            puck['y'] = HEIGHT // 2
+            puck['vx'] = 0
+            puck['vy'] = 0
+        else:
+            puck['x'] = puck_radius
+            puck['vx'] = -puck['vx'] * 0.8
     elif puck['x'] + puck_radius > WIDTH:
-        puck['x'] = WIDTH - puck_radius
-        puck['vx'] = -puck['vx'] * 0.8
+        if puck['y'] >= goal_top and puck['y'] <= goal_bottom:
+            # Gól pre hráča 0 (ľavý hráč)
+            scores[0] += 1
+            puck['x'] = WIDTH // 2
+            puck['y'] = HEIGHT // 2
+            puck['vx'] = 0
+            puck['vy'] = 0
+        else:
+            puck['x'] = WIDTH - puck_radius
+            puck['vx'] = -puck['vx'] * 0.8
     
     # Odraz od stien (vertikálne)
     if puck['y'] - puck_radius < 90:
@@ -212,7 +240,7 @@ def update_puck_server(puck, pos, prev_pos, WIDTH=1280, HEIGHT=700):
 
 def threaded_client(conn, player):
     # Pošleme počiatočnú pozíciu hráča a puk
-    initial_response = make_response(pos[1 if player == 0 else 0], puck, 0)
+    initial_response = make_response(pos[1 if player == 0 else 0], puck, 0, scores)
     conn.send(str.encode(initial_response))
     
     # Nastavíme timeout na socket, aby sa neblokovalo nekonečne
@@ -228,7 +256,7 @@ def threaded_client(conn, player):
             # Alebo starý formát len: player_x,player_y
             with game_lock:
                 if "|" in data:
-                    player_data, puck_data, _ = read_response(data)  # Ignorujeme players_ready, lebo to je len pre prichádzajúce dáta
+                    player_data, puck_data, _, _ = read_response(data)  # Ignorujeme players_ready a scores, lebo to je len pre prichádzajúce dáta
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
                         # Obmedzíme pozíciu hráča na jeho polovicu
@@ -289,9 +317,9 @@ def threaded_client(conn, player):
                 # Vytvoríme kópiu puku, aby sa nezmenil počas odosielania
                 puck_copy = {'x': puck['x'], 'y': puck['y'], 'vx': puck['vx'], 'vy': puck['vy']}
                 if player == 1:
-                    reply = make_response(pos[0], puck_copy, players_ready_count)
+                    reply = make_response(pos[0], puck_copy, players_ready_count, scores)
                 else:
-                    reply = make_response(pos[1], puck_copy, players_ready_count)
+                    reply = make_response(pos[1], puck_copy, players_ready_count, scores)
                 
                 # DEBUG: Vypíšeme stav puku, ktorý posielame (menej často, aby sa znížil výstup)
                 # print(f"[SERVER->CLIENT {player}] Sending puck: pos=({puck_copy['x']:.1f},{puck_copy['y']:.1f}), vel=({puck_copy['vx']:.2f},{puck_copy['vy']:.2f}), players_ready={players_ready_count}")

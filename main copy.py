@@ -4,7 +4,7 @@ from Client import Client
 
 # základné nastavenie okna
 pygame.init()
-music_volume = 1.0
+music_volume = 0
 dragging_volume = False
 mixer_ok = False
 try:
@@ -49,7 +49,7 @@ class Player():
         target_y = my - self.height // 2
 
         target_x = max(self.x_min, min(target_x, self.x_max))
-        target_y = max(90, min(target_y, HEIGHT - 90 - self.height // 2))
+        target_y = max(0, min(target_y, HEIGHT - self.height))
 
         self.x = target_x
         self.y = target_y
@@ -80,6 +80,9 @@ game_state = "menu"  # menu, waiting, countdown, playing
 running = True
 countdown_time = 10
 countdown_start_time = 0
+
+# Skóre hráčov
+scores = [0, 0]
 
 # tlačidlá - posunuté trochu vyššie
 BTN_W, BTN_H = 300, 60
@@ -250,20 +253,20 @@ def draw_settings():
 
 try:
     _loaded = pygame.image.load("images/palka.png").convert_alpha()
-    paddle_img = pygame.transform.smoothscale(_loaded, (180, 180))
+    paddle_img = pygame.transform.smoothscale(_loaded, (120, 120))
 except pygame.error:
     paddle_img = None
 
 # Načítanie obrázkov pálok pre hráčov
 try:
     _loaded_cerveny = pygame.image.load("images/cerveny.png").convert_alpha()
-    cerveny_img = pygame.transform.smoothscale(_loaded_cerveny, (180, 180))
+    cerveny_img = pygame.transform.smoothscale(_loaded_cerveny, (120, 120))
 except pygame.error:
     cerveny_img = None
 
 try:
     _loaded_modry = pygame.image.load("images/modry.png").convert_alpha()
-    modry_img = pygame.transform.smoothscale(_loaded_modry, (180, 180))
+    modry_img = pygame.transform.smoothscale(_loaded_modry, (120, 120))
 except pygame.error:
     modry_img = None
 
@@ -444,6 +447,11 @@ def draw_game_scene(player, player2, puk):
     if puk_img and puk:
         puk_rect = puk_img.get_rect(center=(puk['x'], puk['y']))
         screen.blit(puk_img, puk_rect)
+    
+    # Zobrazenie skóre
+    score_text = f"{scores[0]} : {scores[1]}"
+    score_render = title_font.render(score_text, True, BLACK)
+    screen.blit(score_render, score_render.get_rect(center=(WIDTH // 2, 50)))
 
 def read_pos(str):
     if not str:
@@ -458,9 +466,9 @@ def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
 
 def read_response(str):
-    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
+    """Číta odpoveď zo servera: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready|score0,score1"""
     if not str:
-        return None, None, 0
+        return None, None, 0, [0, 0]
     try:
         parts = str.split("|")
         if len(parts) >= 2:
@@ -475,20 +483,28 @@ def read_response(str):
                 }
                 # Počet hráčov na hracej ploche
                 players_ready = int(parts[2]) if len(parts) > 2 else 0
-                return player_pos, puck, players_ready
+                scores = [0, 0]
+                if len(parts) > 3:
+                    score_parts = parts[3].split(",")
+                    if len(score_parts) == 2:
+                        scores = [int(score_parts[0]), int(score_parts[1])]
+                return player_pos, puck, players_ready, scores
     except Exception as e:
         print("Error reading response:", e)
-    return None, None, 0
+    return None, None, 0, [0, 0]
 
 def main():
     global mode
     client = Client()
     initial_response = client.getPos()
-    player2Pos_from_server, initial_puck, _ = read_response(initial_response) if initial_response else (None, None, 0)
+    player2Pos_from_server, initial_puck, _, initial_scores = read_response(initial_response) if initial_response else (None, None, 0, [0, 0])
     
     if not player2Pos_from_server:
         print("Error: Could not get initial position from server")
         return
+    
+    # Nastavíme počiatočné skóre
+    scores[:] = initial_scores
     
     # Server pošle pozíciu druhého hráča v počiatočnej odpovedi
     # Player 0 dostane pozíciu player 1 (pravá strana), takže player 0 je na ľavej strane
@@ -498,14 +514,14 @@ def main():
     # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
     if player2_is_left:
         # Dostali sme pozíciu hráča na ľavej strane, takže sme player 1 (modrý) - pravá polovica
-        player = Player(1080, 350, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player = Player(1080, 350, 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
         # player2 je na opačnej strane - ľavá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
     else:
         # Dostali sme pozíciu hráča na pravej strane, takže sme player 0 (červený) - ľavá polovica
-        player = Player(200, 350, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player = Player(200, 350, 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
         # player2 je na opačnej strane - pravá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
     
     player2.update()
     
@@ -549,11 +565,14 @@ def main():
             
             response = client.send_with_puck(current_pos, puk)
             if response:
-                player2Pos, server_puck, players_ready = read_response(response)
+                player2Pos, server_puck, players_ready, scores_from_server = read_response(response)
                 if player2Pos:
                     # Aktualizujeme pozíciu druhého hráča
                     player2.x, player2.y = player2Pos
                     player2.update()
+                    
+                    # Aktualizujeme skóre
+                    scores[:] = scores_from_server
                     
                     # Ak sme v stave waiting a obaja hráči sú na hracej ploche (stlačili Hrať)
                     if mode == "waiting" and players_ready >= 2:

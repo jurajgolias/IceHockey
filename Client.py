@@ -5,7 +5,7 @@ class Client:
     def __init__(self):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client.settimeout(0.3)  # Timeout 300ms, aby sa neblokovalo (zvýšené kvôli lock contention na serveri)
-        self.server = "192.168.68.113"
+        self.server = "192.168.68.110"
         self.port = 5555
         self.addr = (self.server, self.port)
         self.pos = self.connect()
