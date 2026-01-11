@@ -149,15 +149,15 @@ def draw_waiting_for_opponent(player, player2, puk):
     draw_game_scene(player, player2, puk)
     
     # Polopriehľadné pozadie pre text
-    waiting_bg = pygame.Surface((500, 150), pygame.SRCALPHA)
-    pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=20)
+    waiting_bg = pygame.Surface((550, 180), pygame.SRCALPHA)
+    pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=25)
     screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
     
     waiting_text = title_font.render("Čaká sa na súpera...", True, WHITE)
     screen.blit(waiting_text, waiting_text.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
     
     hint = small_font.render("ESC - späť do menu", True, GRAY)
-    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 60)))
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 70)))
 
 def draw_countdown(player, player2, puk):
     """Zobrazí countdown na hracej ploche"""
@@ -190,8 +190,8 @@ def draw_countdown(player, player2, puk):
             mode = "game"
     else:
         # Ak ešte nebol spustený countdown, zobrazíme správu
-        waiting_bg = pygame.Surface((400, 100), pygame.SRCALPHA)
-        pygame.draw.rect(waiting_bg, (0, 0, 0, 180), waiting_bg.get_rect(), border_radius=20)
+        waiting_bg = pygame.Surface((550, 120), pygame.SRCALPHA)
+        pygame.draw.rect(waiting_bg, (0, 0, 0, 200), waiting_bg.get_rect(), border_radius=25)
         screen.blit(waiting_bg, waiting_bg.get_rect(center=(WIDTH // 2, HEIGHT // 2)))
         
         waiting_text = title_font.render("Pripravuje sa zápas...", True, WHITE)
