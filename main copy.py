@@ -426,6 +426,18 @@ def draw_game_scene(player, player2, puk):
     #draw_paddle_follow_mouse()
     hint = small_font.render("ESC - späť do menu", True, GRAY)
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 30)))
+    
+    # Vykreslenie brán na oboch stranách ihriska
+    goal_width = 12  # Šírka brany v pixeloch
+    goal_top = 90  # Začiatok brany vertikálne
+    goal_bottom = HEIGHT - 90  # Koniec brany vertikálne
+    goal_height = goal_bottom - goal_top  # Výška brany
+    
+    # Ľavá brána (pre hráča 1)
+    pygame.draw.rect(screen, PURPLE, (0, goal_top, goal_width, goal_height))
+    # Pravá brána (pre hráča 2)
+    pygame.draw.rect(screen, PURPLE, (WIDTH - goal_width, goal_top, goal_width, goal_height))
+    
     player.draw(screen)
     player2.draw(screen)
     # Zobrazenie puku
@@ -560,15 +572,13 @@ def main():
                     puk['y'] = server_puck['y']
                     puk['vx'] = server_puck['vx']
                     puk['vy'] = server_puck['vy']
-                    # DEBUG: Vypíšeme, ak sa puk zmenil alebo je nulový
-                    if puk['vx'] == 0 and puk['vy'] == 0:
-                        print(f"[CLIENT] WARNING: Puck velocity is ZERO! pos=({puk['x']:.1f},{puk['y']:.1f})")
-                    elif abs(puk['vx'] - puk_before['vx']) > 0.1 or abs(puk['vy'] - puk_before['vy']) > 0.1:
-                        print(f"[CLIENT] Puck updated: pos=({puk['x']:.1f},{puk['y']:.1f}), vel=({puk['vx']:.2f},{puk['vy']:.2f})")
-                else:
-                    print(f"[CLIENT] WARNING: server_puck is None or empty!")
-                    if response:
-                        print(f"[CLIENT] Response was: {response[:100]}")
+                    # DEBUG: Vypíšeme len v prípade problémov (menej výstupu)
+                    # if puk['vx'] == 0 and puk['vy'] == 0:
+                    #     print(f"[CLIENT] WARNING: Puck velocity is ZERO! pos=({puk['x']:.1f},{puk['y']:.1f})")
+                # else:
+                #     print(f"[CLIENT] WARNING: server_puck is None or empty!")
+                #     if response:
+                #         print(f"[CLIENT] Response was: {response[:100]}")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

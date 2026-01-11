@@ -4,7 +4,7 @@ import socket
 class Client:
     def __init__(self):
         self.client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client.settimeout(0.1)  # Timeout 100ms, aby sa neblokovalo
+        self.client.settimeout(0.3)  # Timeout 300ms, aby sa neblokovalo (zvýšené kvôli lock contention na serveri)
         self.server = "192.168.0.192"
         self.port = 5555
         self.addr = (self.server, self.port)
@@ -18,7 +18,7 @@ class Client:
             self.client.connect(self.addr)
             self.client.settimeout(2.0)  # Pri pripojení dlhší timeout
             result = self.client.recv(2048).decode()
-            self.client.settimeout(0.1)  # Potom vrátime krátky timeout
+            self.client.settimeout(0.3)  # Potom vrátime timeout 300ms
             return result
         except Exception as e:
             print(f"Connection error: {e}")

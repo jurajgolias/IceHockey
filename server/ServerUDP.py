@@ -215,6 +215,8 @@ def threaded_client(conn, player):
     initial_response = make_response(pos[1 if player == 0 else 0], puck, 0)
     conn.send(str.encode(initial_response))
     
+    # Nastavíme timeout na socket, aby sa neblokovalo nekonečne
+    conn.settimeout(0.5)  # 500ms timeout pre recv
     while True:
         try:
             data = conn.recv(2048).decode()
@@ -291,12 +293,15 @@ def threaded_client(conn, player):
                 else:
                     reply = make_response(pos[1], puck_copy, players_ready_count)
                 
-                # DEBUG: Vypíšeme stav puku, ktorý posielame
-                print(f"[SERVER->CLIENT {player}] Sending puck: pos=({puck_copy['x']:.1f},{puck_copy['y']:.1f}), vel=({puck_copy['vx']:.2f},{puck_copy['vy']:.2f}), players_ready={players_ready_count}")
+                # DEBUG: Vypíšeme stav puku, ktorý posielame (menej často, aby sa znížil výstup)
+                # print(f"[SERVER->CLIENT {player}] Sending puck: pos=({puck_copy['x']:.1f},{puck_copy['y']:.1f}), vel=({puck_copy['vx']:.2f},{puck_copy['vy']:.2f}), players_ready={players_ready_count}")
 
             print("Received from player", player, ": ", data[:50])
-
+            # Odoslanie mimo locku, aby sa znížil čas držania locku
             conn.sendall(str.encode(reply))
+        except socket.timeout:
+            # Timeout pri recv - normálne, keď klient neposiela
+            continue
         except Exception as e:
             print("Error in threaded_client:", e)
             break
@@ -313,12 +318,12 @@ def game_loop():
     global puck, pos, prev_pos, players_in_game
     update_count = 0
     while True:
+        # Skontrolujeme počet hráčov a aktualizujeme puk - držíme lock čo najkratšie
         with game_lock:
-            # Aktualizujeme puk ak sú obaja hráči v hre (aj počas countdownu a hry)
             players_ready_count = sum(players_in_game)
             if players_ready_count >= 2:
                 # Aktualizujeme puk (fyzika beží neustále počas hry)
-                puck_before = {'x': puck['x'], 'y': puck['y'], 'vx': puck['vx'], 'vy': puck['vy']}
+                # update_puck_server modifikuje puck priamo, takže musí byť v locku
                 update_puck_server(puck, pos, prev_pos, WIDTH, HEIGHT)
                 update_count += 1
                 # Debug výpis každých 60 rámcov (1 sekunda)
