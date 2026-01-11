@@ -80,6 +80,7 @@ game_state = "menu"  # menu, waiting, countdown, playing
 running = True
 countdown_time = 10
 countdown_start_time = 0
+game_start_time = 0
 
 # Skóre hráčov
 scores = [0, 0]
@@ -452,6 +453,16 @@ def draw_game_scene(player, player2, puk):
     score_text = f"{scores[0]} : {scores[1]}"
     score_render = title_font.render(score_text, True, BLACK)
     screen.blit(score_render, score_render.get_rect(center=(WIDTH // 2, 50)))
+    
+    # Zobrazenie času hry
+    if game_start_time > 0:
+        current_time = pygame.time.get_ticks() / 1000.0
+        elapsed = current_time - game_start_time
+        minutes = int(elapsed // 60)
+        seconds = int(elapsed % 60)
+        time_text = f"{minutes:02d}:{seconds:02d}"
+        time_render = small_font.render(time_text, True, BLACK)
+        screen.blit(time_render, time_render.get_rect(center=(WIDTH // 2, 80)))
 
 def read_pos(str):
     if not str:
@@ -547,8 +558,8 @@ def main():
     while run:
         clock.tick(60)
 
-        # Povolíme pohyb hráča aj počas čakania, countdownu a hry
-        if mode == "waiting" or mode == "game" or mode == "countdown":
+        # Povolíme pohyb hráča len počas hry
+        if mode == "game":
             player.move()
             
             # Uloženie predchádzajúcich pozícií
@@ -655,6 +666,8 @@ def main():
             if countdown_start_time > 0 and current_time - countdown_start_time >= countdown_time:
                 game_state = "playing"
                 mode = "game"
+                global game_start_time
+                game_start_time = pygame.time.get_ticks() / 1000.0
         elif mode == "game":
             draw_game_scene(player, player2, puk)
         elif mode == "settings":

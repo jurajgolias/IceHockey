@@ -270,16 +270,9 @@ def threaded_client(conn, player):
                         y = max(0, min(player_data[1], HEIGHT - player_width))
                         pos[player] = (x, y)
                         
-                        # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
-                        # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
-                        # Ak už je hráč v hre, zostane v hre (aj keď sa nehýbe alebo posiela rovnakú pozíciu)
+                        # Hráč je na hracej ploche, keď pošle pozíciu
                         if not players_in_game[player]:
-                            # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
-                            pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
-                            is_not_initial = (x, y) != initial_positions[player]
-                            if (is_not_initial or pos_changed) and y >= 0:
-                                # Hráč posiela aktívnu pozíciu - je na hracej ploche
-                                players_in_game[player] = True
+                            players_in_game[player] = True
                         # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)
                         # Puck dáta z klienta ignorujeme - server je autoritatívny
                 else:
@@ -298,16 +291,9 @@ def threaded_client(conn, player):
                         y = max(0, min(player_data[1], HEIGHT - player_width))
                         pos[player] = (x, y)
                         
-                        # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
-                        # Detekujeme aktívnu pozíciu - ak sa pozícia líši od počiatočnej alebo zmenila sa
-                        # Ak už je hráč v hre, zostane v hre (aj keď sa nehýbe alebo posiela rovnakú pozíciu)
+                        # Hráč je na hracej ploche, keď pošle pozíciu
                         if not players_in_game[player]:
-                            # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
-                            pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
-                            is_not_initial = (x, y) != initial_positions[player]
-                            if (is_not_initial or pos_changed) and y >= 0:
-                                # Hráč posiela aktívnu pozíciu - je na hracej ploche
-                                players_in_game[player] = True
+                            players_in_game[player] = True
                         # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)
                 
                 # Počítame, koľko hráčov je na hracej ploche
