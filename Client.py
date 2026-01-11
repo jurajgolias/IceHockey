@@ -35,10 +35,10 @@ class Client:
             return None
     
     def send_with_puck(self, player_data, puck_data):
-        """Posiela pozíciu hráča a puku: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+        """Posiela pozíciu hráča a puku: player_x,player_y,skin|puck_x,puck_y,puck_vx,puck_vy"""
         try:
             puck_str = f"{puck_data['x']:.2f},{puck_data['y']:.2f},{puck_data['vx']:.2f},{puck_data['vy']:.2f}"
-            data = f"{player_data[0]},{player_data[1]}|{puck_str}"
+            data = f"{player_data[0]},{player_data[1]},{player_data[2]}|{puck_str}"
             self.client.send(str.encode(data))
             response = self.client.recv(2048).decode()
             # DEBUG: Vypíšeme, ak timeout alebo chyba

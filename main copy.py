@@ -251,6 +251,57 @@ def draw_settings():
     screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
 
 
+def draw_skins():
+    # Zobrazenie pozadia menu
+    if menu_img:
+        screen.blit(menu_img, (0, 0))
+    else:
+        screen.fill(PURPLE)
+    
+    # Nadpis
+    title = title_font.render("VYBER SKINU", True, WHITE)
+    title_surface = pygame.Surface((title.get_width() + 40, title.get_height() + 20), pygame.SRCALPHA)
+    pygame.draw.rect(title_surface, (0, 0, 0, 150), title_surface.get_rect(), border_radius=10)
+    screen.blit(title_surface, title_surface.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 200)))
+    screen.blit(title, title.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 200)))
+    
+    # Zobrazenie skín v mriežke
+    skin_buttons = {}
+    cols = 4
+    rows = 2
+    start_x = (WIDTH - (cols * 140)) // 2
+    start_y = HEIGHT // 2 - 100
+    for i, skin in enumerate(skin_names):
+        col = i % cols
+        row = i // cols
+        x = start_x + col * 140
+        y = start_y + row * 140
+        rect = pygame.Rect(x, y, 120, 120)
+        skin_buttons[skin] = rect
+        
+        # Polopriehľadné pozadie pre skínu
+        bg_surface = pygame.Surface((130, 130), pygame.SRCALPHA)
+        if skin == selected_skin:
+            pygame.draw.rect(bg_surface, (255, 255, 255, 200), bg_surface.get_rect(), border_radius=10)
+        else:
+            pygame.draw.rect(bg_surface, (255, 255, 255, 100), bg_surface.get_rect(), border_radius=10)
+        screen.blit(bg_surface, (x - 5, y - 5))
+        
+        # Zobrazenie obrázka skíny
+        if skin_images[skin]:
+            screen.blit(skin_images[skin], (x, y))
+        
+        # Názov skíny
+        name_text = small_font.render(skin.capitalize(), True, BLACK)
+        screen.blit(name_text, name_text.get_rect(center=(x + 60, y + 135)))
+    
+    # Hint pre návrat
+    hint = small_font.render("ESC - späť do menu", True, GRAY)
+    screen.blit(hint, hint.get_rect(center=(WIDTH // 2, HEIGHT - 50)))
+    
+    return skin_buttons
+
+
 
 try:
     _loaded = pygame.image.load("images/palka.png").convert_alpha()
@@ -284,7 +335,19 @@ try:
 except pygame.error:
     background_img = None
 
-# Načítanie obrázka menu
+# Načítanie obrázkov skín
+skin_images = {}
+skin_names = ["cerveny", "modry", "pusovce", "ruzovy", "safi", "tatran", "zeleny"]
+for skin in skin_names:
+    try:
+        _loaded = pygame.image.load(f"images/{skin}.png").convert_alpha()
+        skin_images[skin] = pygame.transform.smoothscale(_loaded, (120, 120))
+    except pygame.error:
+        skin_images[skin] = None
+
+# Vybraná skina pre hráča
+selected_skin = "cerveny"
+
 try:
     _loaded_menu = pygame.image.load("images/menu.png").convert()
     menu_img = pygame.transform.smoothscale(_loaded_menu, (WIDTH, HEIGHT))
@@ -466,12 +529,17 @@ def draw_game_scene(player, player2, puk):
 
 def read_pos(str):
     if not str:
-        return 0, 0
+        return 0, 0, "cerveny"
     try:
-        str = str.split(",")
-        return int(str[0]), int(str[1])
+        parts = str.split(",")
+        if len(parts) >= 3:
+            return int(parts[0]), int(parts[1]), parts[2]
+        elif len(parts) == 2:
+            return int(parts[0]), int(parts[1]), "cerveny"
+        else:
+            return 0, 0, "cerveny"
     except:
-        return 0, 0
+        return 0, 0, "cerveny"
 
 def make_pos(tup):
     return str(tup[0]) + "," + str(tup[1])
@@ -505,7 +573,7 @@ def read_response(str):
     return None, None, 0, [0, 0]
 
 def main():
-    global mode
+    global mode, selected_skin
     client = Client()
     initial_response = client.getPos()
     player2Pos_from_server, initial_puck, _, initial_scores = read_response(initial_response) if initial_response else (None, None, 0, [0, 0])
@@ -525,14 +593,14 @@ def main():
     # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
     if player2_is_left:
         # Dostali sme pozíciu hráča na ľavej strane, takže sme player 1 (modrý) - pravá polovica
-        player = Player(1080, 350, 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
+        player = Player(1080, 350, 120, 120, skin_images[selected_skin], WIDTH // 2, WIDTH - 120)
         # player2 je na opačnej strane - ľavá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, skin_images[player2Pos_from_server[2]], 0, WIDTH // 2 - 120)
     else:
         # Dostali sme pozíciu hráča na pravej strane, takže sme player 0 (červený) - ľavá polovica
-        player = Player(200, 350, 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
+        player = Player(200, 350, 120, 120, skin_images[selected_skin], 0, WIDTH // 2 - 120)
         # player2 je na opačnej strane - pravá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, skin_images[player2Pos_from_server[2]], WIDTH // 2, WIDTH - 120)
     
     player2.update()
     
@@ -572,14 +640,15 @@ def main():
         # Posielame pozíciu hráča a puku na server, prijímame pozíciu druhého hráča a puk
         if mode == "waiting" or mode == "countdown" or mode == "game":
             # Pošleme aktuálnu pozíciu hráča (keď klikne na "Hrať", začne posielať pozíciu svojou pálkou)
-            current_pos = (int(player.x), int(player.y))
+            current_pos = (int(player.x), int(player.y), selected_skin)
             
             response = client.send_with_puck(current_pos, puk)
             if response:
                 player2Pos, server_puck, players_ready, scores_from_server = read_response(response)
                 if player2Pos:
                     # Aktualizujeme pozíciu druhého hráča
-                    player2.x, player2.y = player2Pos
+                    player2.x, player2.y = player2Pos[0], player2Pos[1]
+                    player2.image = skin_images[player2Pos[2]]
                     player2.update()
                     
                     # Aktualizujeme skóre
@@ -619,6 +688,7 @@ def main():
                     # Pripojíme sa do zápasu - čakáme na súpera
                     game_state = "waiting"
                     mode = "waiting"
+                    player.image = skin_images[selected_skin]
                     # Pošleme pozíciu hráča, aby server vedel, že sme na hracej ploche
                     # Toto sa pošle v hlavnej slučke
                 elif buttons["settings"].collidepoint(pos):
@@ -655,6 +725,15 @@ def main():
                     if mixer_ok:
                         pygame.mixer.music.set_volume(music_volume)
 
+        if mode == "skins":
+            skin_buttons = draw_skins()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                pos = event.pos
+                for skin, rect in skin_buttons.items():
+                    if rect.collidepoint(pos):
+                        selected_skin = skin
+                        break
+
         if mode == "menu":
             draw_menu()
         elif mode == "waiting":
@@ -673,7 +752,7 @@ def main():
         elif mode == "settings":
             draw_settings()
         elif mode == "skins":
-            draw_placeholder("SKINY (pripravujú sa)")
+            draw_skins()
 
         pygame.mouse.set_visible(mode != "game")  
 

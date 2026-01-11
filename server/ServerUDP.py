@@ -21,8 +21,13 @@ s.listen(2)
 print("Waiting for a connection, Server Started",(server))
 
 def read_pos(str):
-    str = str.split(",")
-    return int(str[0]), int(str[1])
+    parts = str.split(",")
+    if len(parts) == 2:
+        return int(parts[0]), int(parts[1]), "cerveny"
+    elif len(parts) == 3:
+        return int(parts[0]), int(parts[1]), parts[2]
+    else:
+        return 0, 0, "cerveny"
 
 def read_puck(str):
     """Číta pozíciu a rýchlosť puku: x,y,vx,vy"""
@@ -37,7 +42,7 @@ def read_puck(str):
     return None
 
 def make_pos(tup):
-    return str(tup[0]) + "," + str(tup[1])
+    return str(tup[0]) + "," + str(tup[1]) + "," + str(tup[2])
 
 def make_puck(puck):
     """Vytvorí reťazec pre puk: x,y,vx,vy"""
@@ -72,7 +77,7 @@ def read_response(str):
 WIDTH = 1280
 HEIGHT = 700
 # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
-pos = [(200, 350), (1080, 350)]
+pos = [(200, 350, "cerveny"), (1080, 350, "modry")]
 prev_pos = [None, None]  # Predchádzajúce pozície pre výpočet rýchlosti
 initial_positions = [(200, 350), (1080, 350)]  # Počiatočné pozície pre detekciu
 
@@ -258,7 +263,7 @@ def threaded_client(conn, player):
                 if "|" in data:
                     player_data, puck_data, _, _ = read_response(data)  # Ignorujeme players_ready a scores, lebo to je len pre prichádzajúce dáta
                     if player_data:
-                        prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
+                        prev_pos[player] = (pos[player][0], pos[player][1])  # Uložíme predchádzajúcu pozíciu
                         # Obmedzíme pozíciu hráča na jeho polovicu
                         player_width = 120
                         if player == 0:
@@ -268,7 +273,7 @@ def threaded_client(conn, player):
                             # Player 1 (modrý) - pravá polovica (WIDTH//2 až WIDTH - player_width)
                             x = max(WIDTH // 2, min(player_data[0], WIDTH - player_width))
                         y = max(0, min(player_data[1], HEIGHT - player_width))
-                        pos[player] = (x, y)
+                        pos[player] = (x, y, player_data[2])  # (x, y, skin)
                         
                         # Hráč je na hracej ploche, keď pošle pozíciu
                         if not players_in_game[player]:
