@@ -5,7 +5,7 @@ import math
 import time
 import threading
 
-server = "192.168.0.192"
+server = "0.0.0.0"
 port = 5555
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -232,14 +232,14 @@ def threaded_client(conn, player):
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
                         # Obmedzíme pozíciu hráča na jeho polovicu
-                        player_width = 180
+                        player_width = 120
                         if player == 0:
-                            # Player 0 (červený) - ľavá polovica (0 až WIDTH//2 - player_width)
+                            # Player 0 (cervený) - ľavá polovica (0 až WIDTH//2 - player_width)
                             x = max(0, min(player_data[0], WIDTH // 2 - player_width))
                         else:
                             # Player 1 (modrý) - pravá polovica (WIDTH//2 až WIDTH - player_width)
                             x = max(WIDTH // 2, min(player_data[0], WIDTH - player_width))
-                        y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
+                        y = max(0, min(player_data[1], HEIGHT - player_width))
                         pos[player] = (x, y)
                         
                         # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
@@ -249,7 +249,7 @@ def threaded_client(conn, player):
                             # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
                             pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
                             is_not_initial = (x, y) != initial_positions[player]
-                            if (is_not_initial or pos_changed) and y >= 90:
+                            if (is_not_initial or pos_changed) and y >= 0:
                                 # Hráč posiela aktívnu pozíciu - je na hracej ploche
                                 players_in_game[player] = True
                         # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)
@@ -260,14 +260,14 @@ def threaded_client(conn, player):
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
                         # Obmedzíme pozíciu hráča na jeho polovicu
-                        player_width = 180
+                        player_width = 120
                         if player == 0:
                             # Player 0 (červený) - ľavá polovica (0 až WIDTH//2 - player_width)
                             x = max(0, min(player_data[0], WIDTH // 2 - player_width))
                         else:
                             # Player 1 (modrý) - pravá polovica (WIDTH//2 až WIDTH - player_width)
                             x = max(WIDTH // 2, min(player_data[0], WIDTH - player_width))
-                        y = max(90, min(player_data[1], HEIGHT - 90 - player_width // 2))
+                        y = max(0, min(player_data[1], HEIGHT - player_width))
                         pos[player] = (x, y)
                         
                         # Hráč je na hracej ploche, ak posiela aktívnu pozíciu (nie počiatočnú) a je v platnej oblasti
@@ -277,7 +277,7 @@ def threaded_client(conn, player):
                             # Hráč ešte nie je v hre - skontrolujeme, či posiela aktívnu pozíciu
                             pos_changed = (prev_pos[player] is not None and prev_pos[player] != (x, y))
                             is_not_initial = (x, y) != initial_positions[player]
-                            if (is_not_initial or pos_changed) and y >= 90:
+                            if (is_not_initial or pos_changed) and y >= 0:
                                 # Hráč posiela aktívnu pozíciu - je na hracej ploche
                                 players_in_game[player] = True
                         # Ak už je hráč v hre, zostane v hre (nič nerobíme, len necháme ho v hre)

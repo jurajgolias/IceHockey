@@ -4,7 +4,7 @@ from Client import Client
 
 # základné nastavenie okna
 pygame.init()
-music_volume = 1.0
+music_volume = 0
 dragging_volume = False
 mixer_ok = False
 try:
@@ -49,7 +49,7 @@ class Player():
         target_y = my - self.height // 2
 
         target_x = max(self.x_min, min(target_x, self.x_max))
-        target_y = max(90, min(target_y, HEIGHT - 90 - self.height // 2))
+        target_y = max(0, min(target_y, HEIGHT - self.height))
 
         self.x = target_x
         self.y = target_y
@@ -250,20 +250,20 @@ def draw_settings():
 
 try:
     _loaded = pygame.image.load("images/palka.png").convert_alpha()
-    paddle_img = pygame.transform.smoothscale(_loaded, (180, 180))
+    paddle_img = pygame.transform.smoothscale(_loaded, (120, 120))
 except pygame.error:
     paddle_img = None
 
 # Načítanie obrázkov pálok pre hráčov
 try:
     _loaded_cerveny = pygame.image.load("images/cerveny.png").convert_alpha()
-    cerveny_img = pygame.transform.smoothscale(_loaded_cerveny, (180, 180))
+    cerveny_img = pygame.transform.smoothscale(_loaded_cerveny, (120, 120))
 except pygame.error:
     cerveny_img = None
 
 try:
     _loaded_modry = pygame.image.load("images/modry.png").convert_alpha()
-    modry_img = pygame.transform.smoothscale(_loaded_modry, (180, 180))
+    modry_img = pygame.transform.smoothscale(_loaded_modry, (120, 120))
 except pygame.error:
     modry_img = None
 
@@ -498,14 +498,14 @@ def main():
     # Player 0 (červený) - ľavá polovica, Player 1 (modrý) - pravá polovica
     if player2_is_left:
         # Dostali sme pozíciu hráča na ľavej strane, takže sme player 1 (modrý) - pravá polovica
-        player = Player(1080, 350, 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player = Player(1080, 350, 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
         # player2 je na opačnej strane - ľavá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
     else:
         # Dostali sme pozíciu hráča na pravej strane, takže sme player 0 (červený) - ľavá polovica
-        player = Player(200, 350, 180, 180, cerveny_img, 0, WIDTH // 2 - 180)
+        player = Player(200, 350, 120, 120, cerveny_img, 0, WIDTH // 2 - 120)
         # player2 je na opačnej strane - pravá polovica (pozícia zo servera)
-        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 180, 180, modry_img, WIDTH // 2, WIDTH - 180)
+        player2 = Player(player2Pos_from_server[0], player2Pos_from_server[1], 120, 120, modry_img, WIDTH // 2, WIDTH - 120)
     
     player2.update()
     
