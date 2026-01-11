@@ -555,10 +555,20 @@ def main():
                         
                 if server_puck:
                     # Použijeme puk zo servera (autoritatívny)
+                    puk_before = {'x': puk['x'], 'y': puk['y'], 'vx': puk['vx'], 'vy': puk['vy']}
                     puk['x'] = server_puck['x']
                     puk['y'] = server_puck['y']
                     puk['vx'] = server_puck['vx']
                     puk['vy'] = server_puck['vy']
+                    # DEBUG: Vypíšeme, ak sa puk zmenil alebo je nulový
+                    if puk['vx'] == 0 and puk['vy'] == 0:
+                        print(f"[CLIENT] WARNING: Puck velocity is ZERO! pos=({puk['x']:.1f},{puk['y']:.1f})")
+                    elif abs(puk['vx'] - puk_before['vx']) > 0.1 or abs(puk['vy'] - puk_before['vy']) > 0.1:
+                        print(f"[CLIENT] Puck updated: pos=({puk['x']:.1f},{puk['y']:.1f}), vel=({puk['vx']:.2f},{puk['vy']:.2f})")
+                else:
+                    print(f"[CLIENT] WARNING: server_puck is None or empty!")
+                    if response:
+                        print(f"[CLIENT] Response was: {response[:100]}")
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

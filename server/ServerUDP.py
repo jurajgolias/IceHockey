@@ -48,18 +48,19 @@ def make_response(player_pos, puck, players_ready=0):
     return make_pos(player_pos) + "|" + make_puck(puck) + "|" + str(players_ready)
 
 def read_response(str):
-    """Číta odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy"""
+    """Číta odpoveď: player_x,player_y|puck_x,puck_y,puck_vx,puck_vy|players_ready"""
     if not str:
-        return None, None
+        return None, None, 0
     try:
         parts = str.split("|")
-        if len(parts) == 2:
+        if len(parts) >= 2:
             player_pos = read_pos(parts[0])
             puck_data = read_puck(parts[1])
-            return player_pos, puck_data
-    except:
-        pass
-    return None, None
+            players_ready = int(parts[2]) if len(parts) > 2 else 0
+            return player_pos, puck_data, players_ready
+    except Exception as e:
+        print(f"Error reading response: {e}, str: {str[:100]}")
+    return None, None, 0
 
 # Starting positions: player 0 on left half, player 1 on right half
 WIDTH = 1280
@@ -225,7 +226,7 @@ def threaded_client(conn, player):
             # Alebo starý formát len: player_x,player_y
             with game_lock:
                 if "|" in data:
-                    player_data, puck_data = read_response(data)
+                    player_data, puck_data, _ = read_response(data)  # Ignorujeme players_ready, lebo to je len pre prichádzajúce dáta
                     if player_data:
                         prev_pos[player] = pos[player]  # Uložíme predchádzajúcu pozíciu
                         # Obmedzíme pozíciu hráča na jeho polovicu
@@ -289,9 +290,11 @@ def threaded_client(conn, player):
                     reply = make_response(pos[0], puck_copy, players_ready_count)
                 else:
                     reply = make_response(pos[1], puck_copy, players_ready_count)
+                
+                # DEBUG: Vypíšeme stav puku, ktorý posielame
+                print(f"[SERVER->CLIENT {player}] Sending puck: pos=({puck_copy['x']:.1f},{puck_copy['y']:.1f}), vel=({puck_copy['vx']:.2f},{puck_copy['vy']:.2f}), players_ready={players_ready_count}")
 
             print("Received from player", player, ": ", data[:50])
-            print("Sending to player", player, ": ", reply[:50], f"players_ready: {players_ready_count}, pos[0]: {pos[0]}, pos[1]: {pos[1]}")
 
             conn.sendall(str.encode(reply))
         except Exception as e:
@@ -308,17 +311,23 @@ def threaded_client(conn, player):
 def game_loop():
     """Samostatný thread, ktorý aktualizuje puk neustále (60 FPS)"""
     global puck, pos, prev_pos, players_in_game
+    update_count = 0
     while True:
         with game_lock:
             # Aktualizujeme puk ak sú obaja hráči v hre (aj počas countdownu a hry)
             players_ready_count = sum(players_in_game)
-            # Debug: vypíšeme stav players_in_game
             if players_ready_count >= 2:
                 # Aktualizujeme puk (fyzika beží neustále počas hry)
+                puck_before = {'x': puck['x'], 'y': puck['y'], 'vx': puck['vx'], 'vy': puck['vy']}
                 update_puck_server(puck, pos, prev_pos, WIDTH, HEIGHT)
+                update_count += 1
+                # Debug výpis každých 60 rámcov (1 sekunda)
+                if update_count % 60 == 0:
+                    print(f"[GAME_LOOP] Puck updated: pos=({puck['x']:.1f},{puck['y']:.1f}), vel=({puck['vx']:.2f},{puck['vy']:.2f}), players_ready={players_ready_count}")
             elif players_ready_count > 0:
                 # Debug: len jeden hráč je v hre
-                pass
+                if update_count % 60 == 0:
+                    print(f"[GAME_LOOP] Waiting for second player. players_ready={players_ready_count}")
         
         # Čakáme ~16ms pre 60 FPS
         time.sleep(1.0 / 60.0)

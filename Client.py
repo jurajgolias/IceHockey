@@ -40,11 +40,16 @@ class Client:
             puck_str = f"{puck_data['x']:.2f},{puck_data['y']:.2f},{puck_data['vx']:.2f},{puck_data['vy']:.2f}"
             data = f"{player_data[0]},{player_data[1]}|{puck_str}"
             self.client.send(str.encode(data))
-            return self.client.recv(2048).decode()
+            response = self.client.recv(2048).decode()
+            # DEBUG: Vypíšeme, ak timeout alebo chyba
+            if not response:
+                print(f"[CLIENT] WARNING: Empty response from server!")
+            return response
         except socket.timeout:
+            print(f"[CLIENT] WARNING: Socket timeout when sending/receiving!")
             return None
         except socket.error as e:
-            print(f"Send with puck error: {e}")
+            print(f"[CLIENT] Send with puck error: {e}")
             return None
 
 
