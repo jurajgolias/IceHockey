@@ -7,4 +7,4 @@ Hru spustíme pomocou main.py, všetko sa ovláda pomocou myši. Jednodchá 2D P
 Pre pravidelné aktualizácie sledujte náš newsletter <3 
 
 © Deqfo šimi jurkiasoviny
-Dakujeme sponzorom: Karina Strakova, Megan Krídlová, Vanessa Mia Herdická 🇦🇺 ©
+Dakujeme sponzorom: Karina Strakova, Nicole Emma Herdická, Vanessa Mia Herdická 🇦🇺 ©
